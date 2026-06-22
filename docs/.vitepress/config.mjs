@@ -8,7 +8,7 @@ export default defineConfig({
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Guide', link: '/guide/introduction' },
-      { text: 'Roadmap', link: 'https://github.com/paudang/PrivaSub/blob/main/trello_tickets.md' },
+      { text: 'Roadmap', link: 'https://trello.com/b/dP5oqzYl/privasub' },
       { text: 'Changelog', link: 'https://github.com/paudang/PrivaSub/blob/main/changelog.md' }
     ],
 

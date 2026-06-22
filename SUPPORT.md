@@ -20,8 +20,8 @@ When creating a new issue for a bug, please provide as much context as possible:
 *   The exact error message or unexpected behavior (include console logs if possible)
 
 ### 3. Public Roadmap & Task List
-We maintain a detailed offline task list and roadmap that you can copy to your personal Trello board:
-*   **[View Trello Tickets Task List](trello_tickets.md)**
+We maintain a public Trello board where you can track our progress, see upcoming features, and vote on cards:
+*   **[View our Public Roadmap on Trello](https://trello.com/b/dP5oqzYl/privasub)**
 
 ---
 

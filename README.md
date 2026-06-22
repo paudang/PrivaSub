@@ -106,28 +106,8 @@ This will cleanly stop all background audio recording streams, close the GUI win
 
 ## Roadmap
 
-### Phase 1: Core Features (English STT Overlay) - [Current]
-- [x] WASAPI Loopback system audio capture (Windows).
-- [x] VAD (Voice Activity Detection) integration to achieve ~0% CPU on silence.
-- [x] Transparent, borderless click-through overlay subtitles.
-- [x] System Tray background execution with pause/exit actions.
-- [x] Silent background window launcher (`run.bat` with `pythonw.exe`).
-
-### Phase 2: Translation & File Processing - [Q3 2026]
-- [ ] **Offline Translation:** Integrate local machine translation models (e.g., MarianMT/Argos Translate) for real-time English-to-Vietnamese translation on the overlay.
-- [ ] **File Subtitling:** Drag-and-drop local video/audio files to extract speech offline and export standard `.srt` or `.vtt` subtitle files.
-
-### Phase 3: Cross-Platform & Hardware Optimization - [Q4 2026]
-- [ ] **macOS Support:** CoreAudio & virtual loopback integration (e.g., BlackHole).
-- [ ] **Apple Silicon Optimization:** Leverage CoreML / MPS (Metal Performance Shaders) to optimize Whisper running on M1/M2/M3 chips for low battery consumption.
-- [ ] **Linux Support:** Support PipeWire/PulseAudio loopback.
-- [ ] **Mobile Prototype:** Research offline mic-to-text dictation application for iOS & Android.
-
-### Phase 4: Packaging & PR Launch - [Q1 2027]
-- [ ] **Standalone Packaging:** Bundle the app into a single `.exe` (Windows) and `.dmg` (macOS) installer containing the base runtime (removing local Python prerequisites).
-- [ ] **Developer PR:** Write step-by-step tech articles explaining the architecture on Dev.to, Medium, and Viblo.
-- [ ] **Indie Launch:** Publish the project on Product Hunt, Hacker News, and GitHub trending.
-- [ ] **Social Media:** Short-form video demos targeting privacy-focused remote workers and software developers.
+We maintain a public Trello board where you can track our progress, see upcoming features, and vote on cards:
+*   **[View our Public Roadmap on Trello](https://trello.com/b/dP5oqzYl/privasub)**
 
 ---
 
