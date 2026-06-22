@@ -1,0 +1,67 @@
+name: Bug Report
+description: Create a report to help us improve PrivaSub
+title: "[BUG] "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Search for existing issues
+      description: Please search the existing issues to ensure the bug hasn't been reported already.
+      options:
+        - label: I have searched the existing issues
+          required: true
+  - type: input
+    id: version
+    attributes:
+      label: PrivaSub Version
+      description: What version of PrivaSub are you using? (e.g., 1.0.0)
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS
+        - Linux
+    validations:
+      required: true
+  - type: input
+    id: python_version
+    attributes:
+      label: Python Version
+      description: Output of `python --version` (e.g. Python 3.12.1)
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Please provide clear and concise steps to reproduce the behavior.
+      placeholder: |
+        1. Run `python src/main.py`
+        2. Play audio from YouTube
+        3. See error...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: A clear and concise description of what you expected to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened? (Include console logs/errors)
+    validations:
+      required: true

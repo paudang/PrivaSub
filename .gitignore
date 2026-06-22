@@ -1,0 +1,57 @@
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+bin/
+lib/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Model Downloads (Keep AI model files local and out of Git)
+models/
+.huggingface/
+.cache/
+
+# Test Audio Recordings & Temp files
+*.wav
+*.mp3
+*.log
+
+# OS Metadata
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE Settings
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# Build & Package Outputs
+build/
+dist/
+*.spec
+
+# Templates
+trello_tickets.md

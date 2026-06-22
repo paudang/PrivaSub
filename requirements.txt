@@ -1,0 +1,6 @@
+pyaudiowpatch
+faster-whisper
+customtkinter
+pystray
+pillow
+numpy
