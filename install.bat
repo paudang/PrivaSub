@@ -6,14 +6,84 @@ echo.
 
 :: Check if Python is installed
 python --version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [ERROR] Python is not installed or not added to your system PATH.
-    echo Please install Python recommended 3.10, 3.11, or 3.12 from python.org first.
-    echo Make sure to check the box "Add Python to PATH" during installation.
+if %errorlevel% equ 0 goto :python_ready
+
+:: Check if it's already installed in default folders but not in system PATH
+set "PYTHON_PATH="
+for /d %%d in ("%LocalAppData%\Programs\Python\Python*") do (
+    if exist "%%d\python.exe" set "PYTHON_PATH=%%d"
+)
+if not defined PYTHON_PATH (
+    for /d %%d in ("%ProgramFiles%\Python*") do (
+        if exist "%%d\python.exe" set "PYTHON_PATH=%%d"
+    )
+)
+if not defined PYTHON_PATH (
+    if defined ProgramFiles(x86) (
+        for /d %%d in ("%ProgramFiles(x86)%\Python*") do (
+            if exist "%%d\python.exe" set "PYTHON_PATH=%%d"
+        )
+    )
+)
+
+if defined PYTHON_PATH (
+    set "Path=%PYTHON_PATH%;%PYTHON_PATH%\Scripts\;%Path%"
+    python --version >nul 2>&1
+    if %errorlevel% equ 0 goto :python_ready
+)
+
+echo [WARNING] Python is not detected on your system.
+echo PrivaSub requires Python 3.10, 3.11, or 3.12 to run.
+echo.
+set /p choice="Would you like to automatically download and install Python 3.11.9 (100%% offline local run)? (Y/N): "
+if /i "%choice%"=="Y" (
     echo.
+    echo Downloading Python 3.11.9 installer from python.org...
+    curl -L -o python_installer.exe https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe
+    if %errorlevel% neq 0 (
+        echo [ERROR] Failed to download Python installer. Please install it manually.
+        pause
+        exit /b
+    )
+    
+    echo Installing Python 3.11.9 silently... Please wait about 30 seconds...
+    start /wait "" python_installer.exe /quiet PrependPath=1 Include_test=0 Shortcuts=0
+    del python_installer.exe
+    
+    :: Try to find the newly installed python dynamically
+    set "PYTHON_PATH="
+    for /d %%d in ("%LocalAppData%\Programs\Python\Python*") do (
+        if exist "%%d\python.exe" set "PYTHON_PATH=%%d"
+    )
+    if not defined PYTHON_PATH (
+        for /d %%d in ("%ProgramFiles%\Python*") do (
+            if exist "%%d\python.exe" set "PYTHON_PATH=%%d"
+        )
+    )
+    
+    if defined PYTHON_PATH (
+        set "Path=%PYTHON_PATH%;%PYTHON_PATH%\Scripts\;%Path%"
+    ) else (
+        :: Fallback to Python 3.11 default path
+        set "Path=%LocalAppData%\Programs\Python\Python311\;%LocalAppData%\Programs\Python\Python311\Scripts\;%Path%"
+    )
+    
+    :: Verify again
+    python --version >nul 2>&1
+    if %errorlevel% neq 0 (
+        echo [ERROR] Python installation finished but could not be detected.
+        echo Please restart your terminal or computer and run install.bat again.
+        pause
+        exit /b
+    )
+    echo [SUCCESS] Python installed and verified successfully!
+    echo.
+) else (
+    echo Please install Python manually from python.org and add it to your system PATH.
     pause
     exit /b
 )
+:python_ready
 
 echo [1/3] Creating Python Virtual Environment (.venv)...
 python -m venv .venv
