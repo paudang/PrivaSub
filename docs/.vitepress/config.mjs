@@ -3,7 +3,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: "PrivaSub",
   description: "Offline, Privacy-First Desktop Captions Overlay.",
-  base: '/',
+  base: '/PrivaSub/',
   themeConfig: {
     nav: [
       { text: 'Home', link: '/' },
