@@ -48,21 +48,21 @@ Built with privacy at its core, it runs **100% locally on your computer**—requ
 
 ### Installation
 
-1.  Open your terminal in the `PrivaSub` project directory.
-2.  Create and activate a virtual environment:
-    ```powershell
-    # Create the environment
-    python -m venv .venv
+Choose one of the following methods to set up your environment:
 
-    # Activate the environment (Windows PowerShell)
-    .venv\Scripts\Activate.ps1
-    # Or in Command Prompt:
-    .venv\Scripts\activate.bat
-    ```
-3.  Install the required dependencies:
-    ```bash
-    pip install -r requirements.txt
-    ```
+*   **Option A: Using the Installer (Recommended for Windows)**
+    Simply double-click the `install.bat` file in the project folder. This will automatically verify your Python installation, initialize the virtual environment (`.venv`), and download all dependencies.
+    
+*   **Option B: Manual Command Line Setup**
+    1. Open your terminal in the `PrivaSub` project directory.
+    2. Create the virtual environment:
+       ```bash
+       python -m venv .venv
+       ```
+    3. Install the dependencies directly:
+       ```bash
+       .venv\Scripts\pip install -r requirements.txt
+       ```
 
 ---
 

@@ -14,29 +14,26 @@ Follow these steps to set up and run PrivaSub on your local machine.
 
 ## Installation
 
+Choose one of the following methods to set up your environment:
+
+### Method A: Using the Installer (Recommended for Windows)
+Simply double-click the `install.bat` file in the project folder. This will automatically verify your Python installation, initialize the virtual environment (`.venv`), and download all dependencies.
+
+### Method B: Manual Command Line Setup
 1.  **Clone or download the project folder** to your workspace.
 2.  **Open your terminal** inside the `PrivaSub` project directory.
-3.  **Create a Python Virtual Environment** to keep dependencies isolated:
+3.  **Create a Python Virtual Environment**:
     ```bash
     python -m venv .venv
     ```
-
+    
     > [!IMPORTANT]
     > **Virtual Environment Name & Location:**
     > The virtual environment must be created directly in the project root directory and named exactly `.venv` (resulting in the folder path `PrivaSub\.venv`). The helper launcher `run.bat` relies on this exact relative path (`.venv\Scripts\pythonw.exe`) to execute the application silently.
 
-4.  **Activate the virtual environment:**
-    *   **PowerShell:**
-        ```powershell
-        .venv\Scripts\Activate.ps1
-        ```
-    *   **Command Prompt:**
-        ```cmd
-        .venv\Scripts\activate.bat
-        ```
-5.  **Install dependencies:**
+4.  **Install the dependencies directly:**
     ```bash
-    pip install -r requirements.txt
+    .venv\Scripts\pip install -r requirements.txt
     ```
 
 ---
