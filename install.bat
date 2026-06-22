@@ -8,7 +8,7 @@ echo.
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
     echo [ERROR] Python is not installed or not added to your system PATH.
-    echo Please install Python (recommended 3.10, 3.11, or 3.12) from python.org first.
+    echo Please install Python recommended 3.10, 3.11, or 3.12 from python.org first.
     echo Make sure to check the box "Add Python to PATH" during installation.
     echo.
     pause
