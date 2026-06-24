@@ -39,15 +39,15 @@ When VAD detects active speech, the processed audio buffer is passed to `faster-
 
 ## 5. Offline Machine Translation
 Once English text is transcribed by the Whisper engine, it is passed to the offline translation module:
-*   **Model:** Powered by an optimized MarianMT neural network (`opus-mt-en-vi`) converted to the `CTranslate2` model format.
-*   **Tokenization:** Handled locally using Hugging Face `tokenizers` and `sentencepiece` (without PyTorch).
+*   **Model:** Powered by an optimized Meta NLLB-200 neural network (`nllb-200-distilled-600M-ct2-int8`) converted to the `CTranslate2` model format, supporting translation into 10 major global target languages.
+*   **Tokenization:** Handled locally using Hugging Face `transformers` and `sentencepiece` (without PyTorch).
 *   **Performance:** Uses `int8` quantization to achieve translation speeds under **100ms** per sentence directly on your CPU.
 *   **Security:** Runs 100% offline, keeping sensitive transcripts private.
 
 ---
 
 ## 6. Transparent Dual Subtitle Overlay
-Both the English transcript and the Vietnamese translation are pushed to the main thread's GUI:
+Both the original transcript and the translation are pushed to the main thread's GUI:
 *   **Scrollable Textbox Layout:** Built with `CustomTkinter` using an optimized always-on-top layout that retains history so users can scroll back to read past subtitles.
 *   **Windows Click-Through:** Uses ctypes Win32 window style attributes (`WS_EX_TRANSPARENT` and `WS_EX_LAYERED`) to lock the window and permit clicks to pass directly through the subtitles, avoiding interaction locks.
 *   **Dynamic Fade-out:** Monitored by a background timer that triggers a smooth alpha-channel opacity transition to completely hide the window after a short duration of silence.
@@ -58,7 +58,7 @@ Both the English transcript and the Vietnamese translation are pushed to the mai
 ## 7. In-Process Audio Extraction & Batch Subtitle Export
 For local files (video or audio), PrivaSub avoids spawning background command line tools or requiring external `ffmpeg.exe` binaries:
 *   **In-Process PyAV Resampling:** Uses PyAV (Pythonic bindings to FFmpeg libraries) via `av.AudioResampler` to programmatically extract the audio track from the media file, downmix it to mono, and resample it to 16kHz mono `pcm_s16le` format. Because this runs completely in-process, it is fast and fully bypasses Windows WDAC/AppLocker rules blocking external sub-process executions.
-*   **Batch Transcription & Exporter:** Coordinated by `BatchTranscriber` to load the local Whisper model, transcribe the entire extracted file, translate segments to Vietnamese (if requested) via `OfflineTranslator`, format standard SRT (`HH:MM:SS,mmm`) or VTT (`HH:MM:SS.mmm`) timestamp markers, write the output file to disk next to the original media file, and cleanly erase the temporary WAV data.
+*   **Batch Transcription & Exporter:** Coordinated by `BatchTranscriber` to load the local Whisper model, transcribe the entire extracted file, translate segments (if requested) into the selected target language via `OfflineTranslator`, format standard SRT (`HH:MM:SS,mmm`) or VTT (`HH:MM:SS.mmm`) timestamp markers, write the output file to disk next to the original media file, and cleanly erase the temporary WAV data.
 
 ---
 
@@ -74,7 +74,7 @@ src/
 │   │   └── file_extractor.py   # PyAV audio track extraction for media files
 │   └── ai/                     # Local AI Models
 │       ├── transcriber.py      # faster-whisper and VAD integration
-│       └── translator.py       # CTranslate2 MarianMT offline translation
+│       └── translator.py       # CTranslate2 NLLB-200 offline translation
 ├── ui/                         # User Interface components
 │   ├── live/                   # Real-time subtitle overlay
 │   │   └── overlay.py          # CustomTkinter overlay with click-through and smart auto-scroll

@@ -56,7 +56,7 @@ With your virtual environment activated, run:
 ```bash
 python src/main.py
 ```
-*Note: On your very first run, PrivaSub will download the optimized `tiny.en` Whisper transcription model (~75MB) and the `opus-mt-en-vi-ctranslate2` translation model (~150MB) from Hugging Face. These files are stored locally in the `models/` directory for subsequent offline runs. This might take a couple of minutes depending on your internet connection.*
+*Note: On your very first run, PrivaSub will download the optimized `tiny` Whisper multilingual transcription model (~75MB) and the Meta `nllb-200-distilled-600M-ct2-int8` translation model (~600MB) from Hugging Face. These files are stored locally in the `models/` directory for subsequent 100% offline runs. This might take a few minutes depending on your internet connection.*
 
 ---
 

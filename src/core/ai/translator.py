@@ -7,23 +7,47 @@ from huggingface_hub import snapshot_download
 
 logger = logging.getLogger("PrivaSub.Translator")
 
+NLLB_LANGUAGE_CODES = {
+    "English": "eng_Latn",
+    "Vietnamese": "vie_Latn",
+    "Japanese": "jpn_Jpan",
+    "Chinese (Simplified)": "zho_Hans",
+    "Chinese (Traditional)": "zho_Hant",
+    "Korean": "kor_Hang",
+    "Spanish": "spa_Latn",
+    "French": "fra_Latn",
+    "German": "deu_Latn",
+    "Russian": "rus_Cyrl",
+    "Thai": "tha_Thai"
+}
+
+def get_nllb_code(lang_str: str, default: str = "vie_Latn") -> str:
+    if not lang_str:
+        return default
+    if lang_str == "en":
+        return "eng_Latn"
+    if lang_str == "vi":
+        return "vie_Latn"
+    if lang_str in NLLB_LANGUAGE_CODES:
+        return NLLB_LANGUAGE_CODES[lang_str]
+    if "_" in lang_str and len(lang_str) == 8:
+        return lang_str
+    return default
+
 class OfflineTranslator:
     """
-    Handles local English-to-Vietnamese translation using MarianMT via CTranslate2.
+    Handles local English-to-Multilingual translation using Meta NLLB-200 via CTranslate2.
     Automatically downloads the model from Hugging Face on the first run.
     """
-    def __init__(self, model_dir=None, device="cpu", compute_type="int8"):
-        if model_dir is None:
-            # Resolve path relative to project root
-            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            self.model_dir = os.path.join(base_dir, "models", "opus-mt-en-vi-ctranslate2")
-        else:
-            self.model_dir = model_dir
-
+    def __init__(self, model_dir=None, device="cpu", compute_type="int8", source_lang="en", target_lang="vi"):
         self.device = device
         self.compute_type = compute_type
+        self.source_lang = source_lang
+        self.target_lang = target_lang
         self.translator = None
         self.tokenizer = None
+        
+        self.model_dir = self._resolve_model_dir(model_dir)
 
         # Check and download model if necessary
         self._ensure_model_downloaded()
@@ -31,33 +55,44 @@ class OfflineTranslator:
         # Load model and tokenizer
         self._load_model()
 
+    def _resolve_model_dir(self, custom_dir=None):
+        if custom_dir:
+            return custom_dir
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        # NLLB is a single multilingual model capable of both en->vi and vi->en perfectly
+        return os.path.join(base_dir, "models", "nllb-200-distilled-600M-ct2-int8")
+
     def _ensure_model_downloaded(self):
-        """Downloads the model from Hugging Face if not already present locally."""
-        required_files = ["model.bin", "source.spm", "target.spm", "shared_vocabulary.json"]
+        """Downloads the NLLB CTranslate2 model from Hugging Face if not already present locally."""
+        required_files = ["model.bin", "shared_vocabulary.json"]
         model_exists = os.path.exists(self.model_dir) and all(
             os.path.exists(os.path.join(self.model_dir, f)) for f in required_files
         )
 
         if not model_exists:
-            logger.info(f"Model not found at {self.model_dir}. Downloading from Hugging Face...")
+            logger.info(f"Model not found at {self.model_dir}. Downloading NLLB-200 from Hugging Face...")
             os.makedirs(os.path.dirname(self.model_dir), exist_ok=True)
             try:
                 snapshot_download(
-                    repo_id="manancode/opus-mt-en-vi-ctranslate2-android",
+                    repo_id="JustFrederik/nllb-200-distilled-600M-ct2-int8",
                     local_dir=self.model_dir,
                     local_dir_use_symlinks=False
                 )
-                logger.info("Model downloaded successfully.")
+                logger.info("NLLB Model downloaded successfully.")
             except Exception as e:
-                logger.error(f"Failed to download translation model: {e}")
+                logger.error(f"Failed to download NLLB translation model: {e}")
                 raise RuntimeError(f"Translation model download failed: {e}")
         else:
-            logger.info(f"Translation model found at {self.model_dir}.")
+            logger.info(f"NLLB translation model found at {self.model_dir}.")
 
     def _load_model(self):
         """Initializes CTranslate2 translator and transformers tokenizer."""
-        logger.info(f"Loading translation tokenizer from {self.model_dir}...")
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_dir)
+        src_code = get_nllb_code(self.source_lang, default="eng_Latn")
+        logger.info(f"Loading translation tokenizer (src_lang={src_code})...")
+        try:
+            self.tokenizer = AutoTokenizer.from_pretrained("facebook/nllb-200-distilled-600M", src_lang=src_code, local_files_only=True)
+        except Exception:
+            self.tokenizer = AutoTokenizer.from_pretrained("facebook/nllb-200-distilled-600M", src_lang=src_code, local_files_only=False)
         
         logger.info(f"Loading CTranslate2 translator from {self.model_dir} (device={self.device}, compute_type={self.compute_type})...")
         self.translator = ctranslate2.Translator(
@@ -65,47 +100,57 @@ class OfflineTranslator:
             device=self.device,
             compute_type=self.compute_type
         )
-        logger.info("Translation model loaded successfully.")
+        logger.info("NLLB Translation model loaded successfully.")
 
     def translate(self, text: str) -> str:
-        """Translates a single English sentence to Vietnamese."""
+        """Translates a single sentence between English and Vietnamese."""
         if not text or not text.strip():
             return ""
 
-        try:
-            # Pre-processing for better translation:
-            # 1. Clean whitespace
-            src_text = text.strip()
-            
-            # 2. Capitalize first letter (MarianMT translates capitalized sentences better)
-            if src_text and not src_text[0].isupper():
-                src_text = src_text[0].upper() + src_text[1:]
-                
-            # 3. Add ending period if no ending punctuation exists (provides complete sentence context)
-            added_period = False
-            if src_text and src_text[-1] not in ['.', '?', '!', ',', ';', ':', '-']:
-                src_text += "."
-                added_period = True
+        if not self.translator or not self.tokenizer:
+            logger.warning("Translator model not initialized. Skipping translation.")
+            return text
 
-            # Tokenize text (AutoTokenizer automatically handles special tokens like </s>)
-            tokens = self.tokenizer.convert_ids_to_tokens(self.tokenizer.encode(src_text))
+        try:
+            # Prepare target language prefix
+            tgt_code = get_nllb_code(self.target_lang, default="vie_Latn")
             
-            # Translate tokens
-            results = self.translator.translate_batch([tokens])
-            target_tokens = results[0].hypotheses[0]
+            # Tokenize input text
+            input_ids = self.tokenizer.encode(text)
+            input_tokens = self.tokenizer.convert_ids_to_tokens(input_ids)
             
-            # Decode back to string
-            translated_text = self.tokenizer.decode(
-                self.tokenizer.convert_tokens_to_ids(target_tokens),
-                skip_special_tokens=True
-            )
+            # Perform CTranslate2 batch translation
+            results = self.translator.translate_batch([input_tokens], target_prefix=[[tgt_code]])
+            output_tokens = results[0].hypotheses[0]
             
-            # Post-processing:
-            # Strip trailing period if we artificially added one and the translation ended with it
-            if added_period and translated_text.endswith('.'):
-                translated_text = translated_text[:-1].strip()
+            # Strip target prefix from output tokens if present
+            if output_tokens and output_tokens[0] == tgt_code:
+                output_tokens = output_tokens[1:]
                 
+            translated_text = self.tokenizer.decode(self.tokenizer.convert_tokens_to_ids(output_tokens), skip_special_tokens=True)
+            
+            # Post-processing: maintain natural ending punctuation matching source
+            translated_text = translated_text.strip()
+            if text.endswith('.') and not translated_text.endswith('.'):
+                translated_text += '.'
+            elif not text.endswith('.') and translated_text.endswith('.'):
+                translated_text = translated_text[:-1]
+
             return translated_text
         except Exception as e:
             logger.error(f"Translation failed for text '{text}': {e}")
             return text  # Fallback to original text on failure
+
+    def set_translation_direction(self, source_lang, target_lang):
+        """Dynamically switches translation direction."""
+        if source_lang == self.source_lang and target_lang == self.target_lang:
+            return
+            
+        logger.info(f"Switching translation direction to {source_lang} -> {target_lang}")
+        self.source_lang = source_lang
+        self.target_lang = target_lang
+        
+        # Update tokenizer source language instantly without reloading CTranslate2 weights
+        if self.tokenizer:
+            src_code = get_nllb_code(self.source_lang, default="eng_Latn")
+            self.tokenizer.src_lang = src_code

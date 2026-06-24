@@ -4,6 +4,7 @@ import unittest
 import wave
 import struct
 import math
+from unittest.mock import patch
 
 # Add src directory to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
@@ -53,7 +54,7 @@ class TestBatchProcessor(unittest.TestCase):
 
     def test_batch_transcription_srt(self):
         """Tests transcribing to English SRT format."""
-        transcriber = BatchTranscriber(model_size="tiny.en", device="cpu", compute_type="int8")
+        transcriber = BatchTranscriber(model_size="tiny", device="cpu", compute_type="int8")
         
         result_path = transcriber.process_file(
             input_path=self.test_audio,
@@ -73,7 +74,7 @@ class TestBatchProcessor(unittest.TestCase):
 
     def test_batch_transcription_vtt_vi(self):
         """Tests transcribing to Vietnamese VTT format."""
-        transcriber = BatchTranscriber(model_size="tiny.en", device="cpu", compute_type="int8")
+        transcriber = BatchTranscriber(model_size="tiny", device="cpu", compute_type="int8")
         
         result_path = transcriber.process_file(
             input_path=self.test_audio,
@@ -92,7 +93,7 @@ class TestBatchProcessor(unittest.TestCase):
         self.assertTrue(content.startswith("WEBVTT"))
         
     def test_missing_file_error(self):
-        transcriber = BatchTranscriber(model_size="tiny.en", device="cpu", compute_type="int8")
+        transcriber = BatchTranscriber(model_size="tiny", device="cpu", compute_type="int8")
         result = transcriber.process_file("nonexistent.mp4", "en", "srt")
         self.assertIsNone(result)
             
@@ -101,7 +102,7 @@ class TestBatchProcessor(unittest.TestCase):
         progress_mock = unittest.mock.MagicMock()
         status_mock = unittest.mock.MagicMock()
         
-        transcriber = BatchTranscriber(model_size="tiny.en", device="cpu", compute_type="int8")
+        transcriber = BatchTranscriber(model_size="tiny", device="cpu", compute_type="int8")
         out_path = transcriber.process_file(
             self.test_audio, 
             output_format="srt", 
@@ -111,6 +112,44 @@ class TestBatchProcessor(unittest.TestCase):
         self.assertTrue(os.path.exists(out_path))
         # Callbacks should have been called at least once
         self.assertTrue(progress_mock.called)
+
+    @patch("src.services.batch_processor.WhisperModel")
+    def test_process_file_with_dummy_segments(self, mock_whisper):
+        mock_instance = unittest.mock.MagicMock()
+        mock_whisper.return_value = mock_instance
+        
+        class DummySegment:
+            def __init__(self, text, start, end):
+                self.text = text
+                self.start = start
+                self.end = end
+                
+        class DummyInfo:
+            def __init__(self, duration):
+                self.duration = duration
+                
+        mock_instance.transcribe.return_value = ([DummySegment("Hello world", 0.0, 1.5)], DummyInfo(2.0))
+        
+        transcriber = BatchTranscriber(model_size="tiny", device="cpu", compute_type="int8")
+        
+        # Test dual mode
+        with patch("src.services.batch_processor.OfflineTranslator.translate", return_value="Xin chào"):
+            out_dual = transcriber.process_file(self.test_audio, output_format="srt", output_mode="dual")
+            self.assertIsNotNone(out_dual)
+            
+            # Test vi mode with vtt
+            out_vi = transcriber.process_file(self.test_audio, output_format="vtt", output_mode="vi")
+            self.assertIsNotNone(out_vi)
+
+    def test_format_timestamp_overflow_and_edge_cases(self):
+        # Test milliseconds >= 1000 rounding overflow
+        self.assertEqual(format_timestamp(0.9999, is_vtt=False), "00:00:01,000")
+        
+        # Test extract_audio_to_wav returning False
+        with patch("src.services.batch_processor.extract_audio_to_wav", return_value=False):
+            transcriber = BatchTranscriber(model_size="tiny", device="cpu", compute_type="int8")
+            res = transcriber.process_file("dummy.mp4", "en", "srt")
+            self.assertIsNone(res)
 
 if __name__ == '__main__':
     unittest.main()

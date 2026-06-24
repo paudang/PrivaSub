@@ -1,6 +1,6 @@
 # Introduction
 
-**PrivaSub** is a desktop utility that listens to your system audio (speakers or headphones) and transcribes spoken English, translating it offline to Vietnamese, and displaying both in rolling subtitles on a floating overlay window—completely offline.
+**PrivaSub** is a desktop utility that listens to your system audio (speakers or headphones) and transcribes spoken English audio, translating it on-the-fly into 10 major world languages (Vietnamese, Japanese, Chinese, Korean, Spanish, French, German, Russian, Thai), and displaying subtitles on a floating overlay window—completely offline.
 
 ## Why PrivaSub?
 
@@ -16,5 +16,5 @@ PrivaSub solves all these problems by running **entirely offline** on your compu
 1.  **Audio Capture:** The app hooks into Windows' native WASAPI loopback, listening to whatever is playing through your default speakers (YouTube, Zoom, Teams, VLC).
 2.  **Voice Activity Detection (VAD):** The audio stream is filtered through Silero VAD. If there is only background noise, music, or silence, processing stops immediately.
 3.  **Local Inference:** When speech is detected, the audio chunk is transcribed locally by `faster-whisper` (OpenAI's Whisper engine optimized with CTranslate2).
-4.  **Offline Translation:** The transcribed English text is immediately translated to Vietnamese locally using an optimized MarianMT model.
-5.  **UI Render:** Both the original English text and the translated Vietnamese text are rendered simultaneously in a transparent, click-through dual-subtitle overlay window.
+4.  **Offline Translation:** The transcribed English text is immediately translated locally into your chosen target language using an optimized Meta NLLB-200 model.
+5.  **UI Render:** The original text and the translated text are rendered seamlessly in a transparent, click-through subtitle overlay window.

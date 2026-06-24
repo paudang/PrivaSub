@@ -62,6 +62,21 @@ class TestTranslator(unittest.TestCase):
             # In case of error, it should log and return the original text
             self.assertEqual(result, "Hello")
             
+    def test_set_translation_direction(self):
+        self.translator.set_translation_direction("vi", "en")
+        self.assertEqual(self.translator.source_lang, "vi")
+        self.assertEqual(self.translator.target_lang, "en")
+        if self.translator.tokenizer:
+            self.assertEqual(self.translator.tokenizer.src_lang, "vie_Latn")
+        
+        # Test no-op if same direction
+        self.translator.set_translation_direction("vi", "en")
+        
+        # Restore back to original working state for other tests
+        self.translator.set_translation_direction("en", "vi")
+        if self.translator.tokenizer:
+            self.assertEqual(self.translator.tokenizer.src_lang, "eng_Latn")
+            
     def test_model_download_logic(self):
         with patch('src.core.ai.translator.os.path.exists') as mock_exists:
             # First 5 calls check if model files exist, return False to trigger download

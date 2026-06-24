@@ -32,17 +32,19 @@ class BatchTranscriber:
     """
     Coordinates offline video/audio file transcription, translation, and subtitle export (SRT/VTT).
     """
-    def __init__(self, model_size="tiny.en", device="cpu", compute_type="int8"):
+    def __init__(self, model_size="tiny.en", device="cpu", compute_type="int8", source_lang="en", target_lang="vi"):
         self.model_size = model_size
         self.device = device
         self.compute_type = compute_type
+        self.source_lang = source_lang
+        self.target_lang = target_lang
         self.translator = None
 
     def _get_translator(self):
         """Lazy loads the translator model to conserve RAM when not needed."""
         if not self.translator:
             logger.info("Initializing OfflineTranslator for batch translation...")
-            self.translator = OfflineTranslator(device=self.device, compute_type=self.compute_type)
+            self.translator = OfflineTranslator(device=self.device, compute_type=self.compute_type, source_lang=self.source_lang, target_lang=self.target_lang)
         return self.translator
 
     def process_file(self, input_path: str, output_mode="dual", output_format="srt", progress_callback=None) -> str:
@@ -108,7 +110,14 @@ class BatchTranscriber:
 
             # Step 3: Transcription & Translation (30% to 100% of progress)
             logger.info("Starting Whisper batch transcription...")
-            segments, info = model.transcribe(temp_wav_path, beam_size=5)
+            segments, info = model.transcribe(
+                temp_wav_path, 
+                beam_size=5, 
+                temperature=[0.0, 0.2, 0.4, 0.6],
+                initial_prompt="Below is the real-time transcription of a professional English discussion, full of clear vocabulary and corporate terminology.",
+                condition_on_previous_text=True,
+                language=self.source_lang
+            )
             total_duration = info.duration if info else None
 
             # Open output file for writing (force UTF-8)
@@ -121,16 +130,16 @@ class BatchTranscriber:
                     # Translate if requested
                     text = segment.text.strip()
                     
-                    if output_mode == "vi":
-                        # Translate to Vietnamese only
+                    if output_mode in ["vi", "target"]:
+                        # Translate to target language only
                         translator = self._get_translator()
-                        vi_text = translator.translate(text)
-                        display_text = vi_text
+                        trans_text = translator.translate(text)
+                        display_text = trans_text
                     elif output_mode == "dual":
-                        # English + Vietnamese
+                        # English + Target language
                         translator = self._get_translator()
-                        vi_text = translator.translate(text)
-                        display_text = f"{text}\n{vi_text}"
+                        trans_text = translator.translate(text)
+                        display_text = f"{text}\n{trans_text}"
                     else:
                         # English only
                         display_text = text

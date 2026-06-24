@@ -23,6 +23,14 @@ class TestAppConfig(unittest.TestCase):
         config = AppConfig.load()
         self.assertEqual(config["opacity"], DEFAULT_CONFIG["opacity"])
 
+    @patch("src.core.config.os.path.exists")
+    @patch("builtins.open", new_callable=mock_open, read_data='{"target_language": "None (English Only)"}')
+    def test_load_legacy_config_migration(self, mock_file, mock_exists):
+        mock_exists.return_value = True
+        config = AppConfig.load()
+        self.assertEqual(config["source_language"], "English Only")
+        self.assertEqual(config["target_language"], "None")
+
     @patch("builtins.open", new_callable=mock_open)
     def test_save_config(self, mock_file):
         test_config = DEFAULT_CONFIG.copy()
