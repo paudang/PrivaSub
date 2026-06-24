@@ -61,13 +61,9 @@ class FileTranscriberWindow(FileTranscriberBase):
         width = self.winfo_width()
         height = self.winfo_height()
         
-        if self.parent_app and hasattr(self.parent_app, 'app') and self.parent_app.app:
-            overlay = self.parent_app.app
-            x = overlay.winfo_x() + (overlay.winfo_width() // 2) - (width // 2)
-            y = overlay.winfo_y() + (overlay.winfo_height() // 2) - (height // 2)
-        else:
-            x = (self.winfo_screenwidth() // 2) - (width // 2)
-            y = (self.winfo_screenheight() // 2) - (height // 2)
+        # Always center relative to the entire screen display
+        x = (self.winfo_screenwidth() // 2) - (width // 2)
+        y = (self.winfo_screenheight() // 2) - (height // 2)
             
         self.geometry(f"{width}x{height}+{x}+{y}")
 
@@ -150,7 +146,7 @@ class FileTranscriberWindow(FileTranscriberBase):
         
         self.mode_option = ctk.CTkOptionMenu(
             self.options_frame,
-            values=["Dual Subtitles (EN + VI)", "English Only", "Vietnamese Only"],
+            values=["Dual Subtitles (EN + Target)", "English Only", "Target Language Only"],
             fg_color="#1C1C1E",
             button_color="#2C2C2E",
             button_hover_color="#3A3A3C",
@@ -159,7 +155,7 @@ class FileTranscriberWindow(FileTranscriberBase):
             width=200
         )
         self.mode_option.grid(row=0, column=1, sticky="w", pady=5)
-        self.mode_option.set("Dual Subtitles (EN + VI)")
+        self.mode_option.set("Dual Subtitles (EN + Target)")
 
         # Subtitle Format Option
         self.format_label = ctk.CTkLabel(
@@ -300,8 +296,8 @@ class FileTranscriberWindow(FileTranscriberBase):
         mode_val = self.mode_option.get()
         if "Dual" in mode_val:
             output_mode = "dual"
-        elif "Vietnamese" in mode_val:
-            output_mode = "vi"
+        elif "Target" in mode_val:
+            output_mode = "target"
         else:
             output_mode = "en"
 
@@ -345,14 +341,18 @@ class FileTranscriberWindow(FileTranscriberBase):
             # Initialize processor (use settings from parent if available)
             device = "cpu"
             compute_type = "int8"
-            model_size = "tiny.en"
+            model_size = "tiny"
+            target_lang = "Vietnamese"
             
-            if self.parent_app and hasattr(self.parent_app, 'transcriber'):
-                model_size = self.parent_app.transcriber.model_size
-                device = self.parent_app.transcriber.device
-                compute_type = self.parent_app.transcriber.compute_type
+            if self.parent_app:
+                if hasattr(self.parent_app, 'transcriber'):
+                    model_size = self.parent_app.transcriber.model_size
+                    device = self.parent_app.transcriber.device
+                    compute_type = self.parent_app.transcriber.compute_type
+                if hasattr(self.parent_app, 'target_language') and self.parent_app.target_language != "None":
+                    target_lang = self.parent_app.target_language
                 
-            processor = BatchTranscriber(model_size=model_size, device=device, compute_type=compute_type)
+            processor = BatchTranscriber(model_size=model_size, device=device, compute_type=compute_type, target_lang=target_lang)
             
             # Progress callback update
             def progress_callback(percent, status):

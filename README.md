@@ -7,20 +7,20 @@ Built with privacy at its core, it runs **100% locally on your computer**—requ
 
 > [!IMPORTANT]
 > **Language Support:** 
-> Currently, the application supports **English audio input** and generates **dual subtitles** in real-time (English transcript on top, Vietnamese translation on the bottom). Both speech recognition and translation run 100% offline.
+> PrivaSub supports live English audio transcription and translation to **10 major world languages** (Vietnamese, Japanese, Chinese Simplified, Chinese Traditional, Korean, Spanish, French, German, Russian, and Thai). You can freely choose between Single Subtitle mode (English Only) or Dual Subtitle mode (original text on top, translation on the bottom). Both speech recognition and translation run 100% offline.
 
 ---
 
 ## Key Features
 
-*   **Real-Time Offline Translation:** Translates English audio directly to Vietnamese on-the-fly using an optimized offline MarianMT model.
-*   **Dual Subtitle Layout:** Displays both the original English speech and the translated Vietnamese text simultaneously.
+*   **Real-Time Multilingual Offline Translation:** Translates English audio on-the-fly into 10 target languages using an optimized offline Meta NLLB-200 model.
+*   **Dual Subtitle Layout:** Displays both the original English speech and the translated target text simultaneously.
 *   **System Tray Integration:** Runs silently in your taskbar (System Tray), keeping your workspace clutter-free.
 *   **VAD-Powered Low CPU Usage:** Utilizes *Silero Voice Activity Detection (VAD)*. The transcription engine remains idle (consuming ~0% CPU) during silence or music, triggering only when speech is detected.
 *   **Transparent Overlay:** A sleek, borderless, semi-transparent dark subtitle bar that floats on top of all windows.
 *   **Click-Through (Lock Mode):** Click right through the subtitles to interact with YouTube buttons or Zoom features underneath.
 *   **Auto-Hide & Fade-Out:** Subtitles automatically fade out and hide after 4–6 seconds of silence, restoring screen space when meetings pause or videos end.
-*   **Offline Batch File Transcriber:** Drag-and-drop or select any local video/audio file to extract audio and generate standard subtitles (`.srt` or `.vtt`) in English, Vietnamese, or Dual mode, saved directly next to the original file. Runs 100% offline using PyAV and Whisper.
+*   **Offline Batch File Transcriber:** Drag-and-drop or select any local video/audio file to extract audio and generate standard subtitles (`.srt` or `.vtt`) in English, Target Language, or Dual mode, saved directly next to the original file. Runs 100% offline using PyAV and Whisper.
 *   **High Performance local AI:** Uses `faster-whisper` and optimized CTranslate2 translation engines to deliver low-latency overlays using INT8 CPU quantization.
 
 ---
@@ -35,10 +35,10 @@ Built with privacy at its core, it runs **100% locally on your computer**—requ
                                                 │
                                       (If Speech Detected)
                                                 ▼
-[Local Whisper Engine (tiny.en)] ──> [Real-time English Text]
+[Local Whisper Engine (tiny)] ──> [Real-time Transcribed Text]
                                                 │
                                                 ▼
-[Offline Translator (MarianMT)] ──> [Real-time Vietnamese Text]
+[Offline Translator (Meta NLLB-200)] ──> [Real-time Translated Text]
                                                 │
                                                 ▼
                                     [Transparent Dual-Subtitle GUI]
@@ -101,14 +101,14 @@ python run_tests.py
 ```
 
 > [!NOTE]
-> On your first run, the app will automatically download the optimized `tiny.en` Whisper transcription model (~75MB) and the `opus-mt-en-vi-ctranslate2` translation model (~150MB) from Hugging Face and cache them locally. Please allow a couple of minutes for the models to load.
+> On your first run, the app will automatically download the optimized `tiny` Whisper multilingual transcription model (~75MB) and the Meta `nllb-200-distilled-600M-ct2-int8` translation model (~600MB) from Hugging Face and cache them locally. Please allow a few minutes for the models to load.
 
 ### Interacting with the Subtitles
 1. **Locate the Tray Icon:** A blue-and-white subtitle icon will appear in your Windows System Tray (bottom-right taskbar).
 2. **Move/Position Overlay:** Right-click the Tray Icon and check **Toggle Draggable (Unlock)**. A border will appear, allowing you to drag the subtitle bar anywhere on the screen. Uncheck it to lock the position.
 3. **Lock (Click-Through):** When the window is locked (Toggle Draggable is unchecked), you can click directly "through" the subtitle text onto video players, Zoom controls, or window buttons behind it.
 4. **Pause/Resume:** Right-click the Tray Icon and select **Pause Listening** to pause audio capturing and save CPU resources. Select it again to resume.
-5. **Batch File Transcriber:** Right-click the Tray Icon and select **Open File Transcriber** to open the Batch File Transcriber window. Drag and drop any video/audio file, configure your output subtitle preferences (English, Vietnamese, or Dual) and format (SRT or VTT), and click **Start Transcribing & Export**.
+5. **Batch File Transcriber:** Right-click the Tray Icon and select **Open File Transcriber** to open the Batch File Transcriber window. Drag and drop any video/audio file, configure your output subtitle preferences (English, Target Language, or Dual) and format (SRT or VTT), and click **Start Transcribing & Export**.
 
 ### Stopping the Application
 To shut down the application completely:

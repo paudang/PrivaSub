@@ -12,8 +12,8 @@ from src.core.ai.transcriber import Transcriber
 class TestTranscriber(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        # Load Whisper tiny.en once for testing
-        cls.transcriber = Transcriber(model_size="tiny.en", device="cpu", compute_type="int8")
+        # Load Whisper tiny once for testing
+        cls.transcriber = Transcriber(model_size="tiny", device="cpu", compute_type="int8")
 
     def setUp(self):
         # Reset the buffer before each test
@@ -45,6 +45,10 @@ class TestTranscriber(unittest.TestCase):
         self.assertEqual(len(self.transcriber.audio_buffer), 0)
         self.assertFalse(self.transcriber.speech_detected)
         self.assertEqual(self.transcriber.last_text, "")
+
+    def test_set_language(self):
+        self.transcriber.set_language("vi")
+        self.assertEqual(self.transcriber.language, "vi")
 
     def test_forced_buffer_split(self):
         """Verifies that when the buffer exceeds max_buffer_seconds, a forced split occurs to prevent latency."""

@@ -6,9 +6,9 @@
 ---
 
 ## 1. Project Overview
-**PrivaSub** is a live desktop dual-subtitle application for Windows, designed to operate **100% Offline & Privacy-First**.
+**PrivaSub** is a live desktop subtitle application for Windows, designed to operate **100% Offline & Privacy-First**.
 - **Input:** Captures system audio (YouTube, Zoom, Teams, VLC, etc.) via the Windows WASAPI Loopback protocol.
-- **AI Core:** Runs entirely locally on CPU using `faster-whisper` (tiny.en - INT8 quantization) and `MarianMT` (offline English-to-Vietnamese translation).
+- **AI Core:** Runs entirely locally on CPU using `faster-whisper` (tiny - INT8 quantization) and `Meta NLLB-200` (offline English-to-Multilingual translation supporting 10+ target languages).
 - **VAD Processing:** Integrates Silero VAD to keep CPU utilization at ~0% during periods of silence.
 - **Graphical User Interface (GUI):** Built with `CustomTkinter`, featuring a sleek, semi-transparent, rounded dark overlay. It supports auto-hiding during silence and a **Click-Through** mode (injecting Win32 API window styles to allow clicking through the subtitles).
 
@@ -21,11 +21,11 @@ The project enforces a strict modular design, cleanly separating the AI Engine, 
 PrivaSub/
 ├── assets/                    # Application icons and branding (icon.ico, icon.png, logo)
 ├── docs/                      # Official documentation (VitePress powered)
-├── models/                    # Local storage directory for AI models (Whisper, MarianMT)
+├── models/                    # Local storage directory for AI models (Whisper, NLLB-200)
 ├── prompts/                   # Context prompts and onboarding documentation
 ├── src/                       # Main source code directory
 │   ├── core/                  # Core domain logic
-│   │   ├── ai/                # transcriber.py (Whisper), translator.py (MarianMT)
+│   │   ├── ai/                # transcriber.py (Whisper), translator.py (NLLB-200)
 │   │   ├── audio/             # system_audio.py (WASAPI loopback), file_extractor.py
 │   │   └── config.py          # AppConfig logic managing config.json & App Version
 │   ├── services/              # Orchestration and background services (batch_processor.py)
@@ -89,7 +89,7 @@ coverage report -m --fail-under=90
 You are a Senior AI Tech Lead & Python Software Engineer. Please help me develop a new feature for PrivaSub (a 100% Offline Desktop Captions Overlay application for Windows).
 
 [PROJECT CONTEXT & ARCHITECTURE]:
-- PrivaSub captures Windows system audio via WASAPI loopback (pyaudiowpatch), processes VAD via Silero, runs speech-to-text via Faster-Whisper (INT8 CPU), and translates via MarianMT.
+- PrivaSub captures Windows system audio via WASAPI loopback (pyaudiowpatch), processes VAD via Silero, runs speech-to-text via Faster-Whisper (INT8 CPU), and translates English audio to 10+ target languages via Meta NLLB-200.
 - The GUI is built with CustomTkinter, featuring Click-Through capabilities (Win32 API injection) and auto-hiding during silence.
 - Key source directories: src/core (business logic), src/services (orchestration), src/ui (interfaces), tests/ (unit tests).
 

@@ -4,11 +4,12 @@ import numpy as np
 from faster_whisper import WhisperModel
 
 class Transcriber:
-    def __init__(self, model_size="tiny.en", device="cpu", compute_type="int8"):
+    def __init__(self, model_size="tiny.en", device="cpu", compute_type="int8", language="en"):
         """
         Initializes the local Whisper transcription engine.
         Using model_size='tiny.en' or 'base.en' and compute_type='int8' for CPU optimization.
         """
+        self.language = language
         print(f"[AI] Loading Whisper model '{model_size}' on {device} ({compute_type})...")
         # Ensure we run offline first to avoid Hugging Face network requests/timeouts.
         # Fallback to downloading if the model is not found locally.
@@ -77,6 +78,9 @@ class Transcriber:
             segments, info = self.model.transcribe(
                 self.audio_buffer,
                 beam_size=1,
+                temperature=[0.0, 0.2, 0.4, 0.6],
+                initial_prompt="Below is the real-time transcription of a professional English discussion, full of clear vocabulary and corporate terminology.",
+                condition_on_previous_text=True,
                 vad_filter=True,
                 vad_parameters=dict(
                     min_speech_duration_ms=200,
@@ -84,7 +88,7 @@ class Transcriber:
                     min_silence_duration_ms=400,
                     speech_pad_ms=300
                 ),
-                language="en"
+                language=self.language
             )
             segments = list(segments)
         except Exception as e:
@@ -148,3 +152,9 @@ class Transcriber:
         self.silence_ticks = 0
         self.speech_detected = False
         self.last_text = ""
+
+    def set_language(self, language):
+        """Dynamically switches the transcription language."""
+        self.language = language
+        print(f"[AI] Whisper transcription language set to '{language}'")
+

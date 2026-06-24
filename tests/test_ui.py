@@ -154,6 +154,14 @@ class TestAdditionalWindows(unittest.TestCase):
         win.opacity_slider.set(70)
         win._update_opacity_val(70)
         
+        # Test on_source_change
+        win.on_source_change("English Only")
+        self.assertEqual(win.target_var.get(), "None")
+        win.on_source_change("English (Translate Mode)")
+        self.assertEqual(win.target_var.get(), "Vietnamese")
+        win.target_var.set("Japanese")
+        self.assertEqual(win.target_var.get(), "Japanese")
+        
         # Test reset
         win.reset_defaults()
         

@@ -12,8 +12,8 @@ class SettingsWindow(ctk.CTkToplevel):
         
         # Configure window properties
         self.title("PrivaSub - Settings")
-        self.geometry("420x550")
-        self.minsize(400, 500)
+        self.geometry("420x650")
+        self.minsize(400, 600)
         self.resizable(True, True)
         self.configure(fg_color="#121212")
         
@@ -35,13 +35,9 @@ class SettingsWindow(ctk.CTkToplevel):
         width = self.winfo_width()
         height = self.winfo_height()
         
-        if self.parent_app and hasattr(self.parent_app, 'app') and self.parent_app.app:
-            overlay = self.parent_app.app
-            x = overlay.winfo_x() + (overlay.winfo_width() // 2) - (width // 2)
-            y = overlay.winfo_y() + (overlay.winfo_height() // 2) - (height // 2)
-        else:
-            x = (self.winfo_screenwidth() // 2) - (width // 2)
-            y = (self.winfo_screenheight() // 2) - (height // 2)
+        # Always center relative to the entire screen display
+        x = (self.winfo_screenwidth() // 2) - (width // 2)
+        y = (self.winfo_screenheight() // 2) - (height // 2)
             
         self.geometry(f"{width}x{height}+{x}+{y}")
 
@@ -89,26 +85,40 @@ class SettingsWindow(ctk.CTkToplevel):
         self.opacity_slider.set(self.config_data.get("opacity", 80))
         self._update_opacity_val(self.opacity_slider.get())
 
-        # 4. Target Translation Language
-        self._create_label(self.main_frame, "Target Language (Translation)", 6)
-        
-        # Migration from old boolean format to string format
-        old_val = self.config_data.get("show_translation")
-        curr_lang = self.config_data.get("target_language", "None (English Only)")
-        if old_val is True and curr_lang == "None (English Only)":
-            curr_lang = "Vietnamese"
-            
-        self.lang_var = ctk.StringVar(value=curr_lang)
-        self.lang_dropdown = ctk.CTkOptionMenu(
+        # 4. Source Language
+        self._create_label(self.main_frame, "Source Language (Audio)", 6)
+        curr_source = self.config_data.get("source_language", "English Only")
+        self.source_var = ctk.StringVar(value=curr_source)
+        self.source_dropdown = ctk.CTkOptionMenu(
             self.main_frame,
-            values=["None (English Only)", "Vietnamese"],
-            variable=self.lang_var,
+            values=["English (Translate Mode)", "English Only"],
+            variable=self.source_var,
+            font=ctk.CTkFont(family="Inter", size=13),
+            fg_color="#2C2C2E",
+            button_color="#3A3A3C",
+            button_hover_color="#4A4A4C",
+            command=self.on_source_change
+        )
+        self.source_dropdown.grid(row=7, column=0, columnspan=2, sticky="ew", padx=20, pady=(5, 10))
+
+        # 5. Target Translation Language
+        self._create_label(self.main_frame, "Target Language (Translation)", 8)
+        curr_target = self.config_data.get("target_language", "None")
+        self.target_var = ctk.StringVar(value=curr_target)
+        self.target_dropdown = ctk.CTkOptionMenu(
+            self.main_frame,
+            values=["Vietnamese", "Japanese", "Chinese (Simplified)", "Chinese (Traditional)", "Korean", "Spanish", "French", "German", "Russian", "Thai", "None"],
+            variable=self.target_var,
             font=ctk.CTkFont(family="Inter", size=13),
             fg_color="#2C2C2E",
             button_color="#3A3A3C",
             button_hover_color="#4A4A4C"
         )
-        self.lang_dropdown.grid(row=7, column=0, columnspan=2, sticky="ew", padx=20, pady=(5, 25))
+        self.target_dropdown.grid(row=9, column=0, columnspan=2, sticky="ew", padx=20, pady=(5, 25))
+
+        # Initial check for enabled/disabled state
+        self.on_source_change(curr_source)
+
 
         # Save Button
         self.save_btn = ctk.CTkButton(
@@ -147,12 +157,22 @@ class SettingsWindow(ctk.CTkToplevel):
     def _update_opacity_val(self, val):
         self.opacity_val_label.configure(text=f"{int(val)}%")
 
+    def on_source_change(self, value):
+        if value == "English Only":
+            self.target_dropdown.configure(state="disabled")
+            self.target_var.set("None")
+        elif value == "English (Translate Mode)":
+            self.target_dropdown.configure(state="normal", values=["Vietnamese", "Japanese", "Chinese (Simplified)", "Chinese (Traditional)", "Korean", "Spanish", "French", "German", "Russian", "Thai"])
+            if self.target_var.get() == "None":
+                self.target_var.set("Vietnamese")
+
     def save_and_close(self):
         new_config = {
             "max_history_lines": int(self.history_slider.get()),
             "auto_hide_timeout_s": int(self.timeout_slider.get()),
             "opacity": int(self.opacity_slider.get()),
-            "target_language": self.lang_var.get()
+            "source_language": self.source_var.get(),
+            "target_language": self.target_var.get()
         }
         AppConfig.save(new_config)
         
@@ -172,4 +192,6 @@ class SettingsWindow(ctk.CTkToplevel):
         self.opacity_slider.set(DEFAULT_CONFIG["opacity"])
         self._update_opacity_val(self.opacity_slider.get())
         
-        self.lang_var.set(DEFAULT_CONFIG["target_language"])
+        self.source_var.set(DEFAULT_CONFIG["source_language"])
+        self.on_source_change(DEFAULT_CONFIG["source_language"])
+

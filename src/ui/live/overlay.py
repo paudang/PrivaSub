@@ -31,7 +31,7 @@ class SubtitleOverlay(ctk.CTk):
         screen_height = self.winfo_screenheight()
         
         # Subtitle window size
-        self.win_width = int(screen_width * 0.6)
+        self.win_width = int(screen_width * 0.40)
         self.win_height = 150 # Increased slightly for scrollable history
         self.min_width = self.win_width
         self.min_height = self.win_height
@@ -305,12 +305,8 @@ class SubtitleOverlay(ctk.CTk):
             self.attributes("-alpha", self.target_alpha)
             
         # Apply translation height update
-        curr_lang = self.config.get("target_language", "None (English Only)")
-        old_val = self.config.get("show_translation")
-        if old_val is True and curr_lang == "None (English Only)":
-            curr_lang = "Vietnamese"
-            
-        show_trans = (curr_lang != "None (English Only)")
+        curr_target = self.config.get("target_language", "Vietnamese")
+        show_trans = (curr_target != "None" and curr_target != "None (English Only)")
         self.set_translation_visible(show_trans)
         
     def set_translation_visible(self, visible):

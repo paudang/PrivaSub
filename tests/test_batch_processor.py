@@ -53,7 +53,7 @@ class TestBatchProcessor(unittest.TestCase):
 
     def test_batch_transcription_srt(self):
         """Tests transcribing to English SRT format."""
-        transcriber = BatchTranscriber(model_size="tiny.en", device="cpu", compute_type="int8")
+        transcriber = BatchTranscriber(model_size="tiny", device="cpu", compute_type="int8")
         
         result_path = transcriber.process_file(
             input_path=self.test_audio,
@@ -73,7 +73,7 @@ class TestBatchProcessor(unittest.TestCase):
 
     def test_batch_transcription_vtt_vi(self):
         """Tests transcribing to Vietnamese VTT format."""
-        transcriber = BatchTranscriber(model_size="tiny.en", device="cpu", compute_type="int8")
+        transcriber = BatchTranscriber(model_size="tiny", device="cpu", compute_type="int8")
         
         result_path = transcriber.process_file(
             input_path=self.test_audio,
@@ -92,7 +92,7 @@ class TestBatchProcessor(unittest.TestCase):
         self.assertTrue(content.startswith("WEBVTT"))
         
     def test_missing_file_error(self):
-        transcriber = BatchTranscriber(model_size="tiny.en", device="cpu", compute_type="int8")
+        transcriber = BatchTranscriber(model_size="tiny", device="cpu", compute_type="int8")
         result = transcriber.process_file("nonexistent.mp4", "en", "srt")
         self.assertIsNone(result)
             
@@ -101,7 +101,7 @@ class TestBatchProcessor(unittest.TestCase):
         progress_mock = unittest.mock.MagicMock()
         status_mock = unittest.mock.MagicMock()
         
-        transcriber = BatchTranscriber(model_size="tiny.en", device="cpu", compute_type="int8")
+        transcriber = BatchTranscriber(model_size="tiny", device="cpu", compute_type="int8")
         out_path = transcriber.process_file(
             self.test_audio, 
             output_format="srt", 

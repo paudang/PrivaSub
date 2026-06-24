@@ -26,21 +26,19 @@ class PrivaSubApp:
         
         # Load user settings
         self.config = AppConfig.load()
-        old_show = self.config.get("show_translation")
-        self.target_language = self.config.get("target_language", "None (English Only)")
-        if old_show is True and self.target_language == "None (English Only)":
-            self.target_language = "Vietnamese"
+        self.source_language = self.config.get("source_language", "English Only")
+        self.target_language = self.config.get("target_language", "None")
         
         # 1. Initialize components
         print("[Main] Initializing PrivaSub components...")
         self.capture = AudioCapture(chunk_duration_ms=100)
         
-        # Use tiny.en model for quick load and low CPU footprint
-        self.transcriber = Transcriber(model_size="tiny.en", device="cpu", compute_type="int8")
+        # Use tiny.en model for optimized English transcription
+        self.transcriber = Transcriber(model_size="tiny.en", device="cpu", compute_type="int8", language="en")
         
         # Initialize offline translator
         print("[Main] Loading offline translator...")
-        self.translator = OfflineTranslator(device="cpu", compute_type="int8")
+        self.translator = OfflineTranslator(device="cpu", compute_type="int8", source_lang="en", target_lang=self.target_language)
         
         # Initialize UI on main thread
         self.app = SubtitleOverlay()
@@ -96,7 +94,7 @@ class PrivaSubApp:
         menu = pystray.Menu(
             pystray.MenuItem("Toggle Draggable (Unlock)", self.on_toggle_lock, checked=lambda item: not self.is_locked),
             pystray.MenuItem("Pause Listening", self.on_toggle_pause, checked=lambda item: self.is_paused),
-            pystray.MenuItem("Show Translation (Vietnamese)", self.on_toggle_translation, checked=lambda item: self.target_language != "None (English Only)"),
+            pystray.MenuItem("Toggle Translation", self.on_toggle_translation, checked=lambda item: self.target_language != "None" and self.target_language != "None (English Only)"),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Open File Transcriber", self.on_open_transcriber),
             pystray.MenuItem("Settings", self.on_open_settings),
@@ -140,19 +138,27 @@ class PrivaSubApp:
 
     def on_toggle_translation(self, icon, item):
         """Toggles the visibility of translation subtitles."""
-        if self.target_language == "None (English Only)":
+        if self.target_language == "None" or self.target_language == "None (English Only)":
             self.target_language = "Vietnamese"
+            self.source_language = "English (Translate Mode)"
         else:
-            self.target_language = "None (English Only)"
+            self.target_language = "None"
+            self.source_language = "English Only"
             
         print(f"[Main] Target language toggled: {self.target_language}")
         
         # Save to config
+        self.config["source_language"] = self.source_language
         self.config["target_language"] = self.target_language
         AppConfig.save(self.config)
         
+        self.transcriber.set_language("en")
+        
+        if self.target_language != "None":
+            self.translator.set_translation_direction("en", self.target_language)
+        
         # Update UI layout on main thread
-        show_trans = (self.target_language != "None (English Only)")
+        show_trans = (self.target_language != "None" and self.target_language != "None (English Only)")
         self.app.after(0, self.app.set_translation_visible, show_trans)
 
     def on_show_bar(self, icon, item):
@@ -192,7 +198,14 @@ class PrivaSubApp:
         
         def on_settings_saved(new_config):
             self.config = new_config
-            self.target_language = new_config.get("target_language", "None (English Only)")
+            self.source_language = new_config.get("source_language", "English (Translate Mode)")
+            self.target_language = new_config.get("target_language", "Vietnamese")
+            
+            self.transcriber.set_language("en")
+            
+            if self.target_language != "None" and self.target_language != "None (English Only)":
+                self.translator.set_translation_direction("en", self.target_language)
+                
             self.app.apply_config(new_config)
             
         self.settings_win = SettingsWindow(parent_app=self, on_save_callback=on_settings_saved)
@@ -218,30 +231,30 @@ class PrivaSubApp:
                         text = text[0].upper() + text[1:]
                         
                     # Translate offline only if a target language is selected
-                    vi_text = ""
-                    if self.target_language != "None (English Only)":
+                    trans_text = ""
+                    if self.target_language != "None" and self.target_language != "None (English Only)":
                         current_time = time.time()
                         
                         if is_final:
                             # Always translate final segments immediately
-                            vi_text = self.translator.translate(text)
+                            trans_text = self.translator.translate(text)
                             self.last_translated_text = ""
                             self.cached_vi_text = ""
                         elif text == self.last_translated_text:
                             # Reuse cache if text has not changed
-                            vi_text = self.cached_vi_text
+                            trans_text = self.cached_vi_text
                         elif current_time - self.last_translation_time > 0.6:
                             # Rate-limit translations of growing interim text (600ms) to prevent flickering
-                            vi_text = self.translator.translate(text)
+                            trans_text = self.translator.translate(text)
                             self.last_translation_time = current_time
                             self.last_translated_text = text
-                            self.cached_vi_text = vi_text
+                            self.cached_vi_text = trans_text
                         else:
                             # Keep displaying cached text during rate limit interval
-                            vi_text = self.cached_vi_text
+                            trans_text = self.cached_vi_text
                             
                     # Push UI update task to Tkinter main thread loop safely
-                    self.app.after(0, self.app.set_text, text, vi_text, is_final)
+                    self.app.after(0, self.app.set_text, text, trans_text, is_final)
             else:
                 time.sleep(0.05)
 

@@ -37,6 +37,7 @@ export default defineConfig({
         items: [
           { text: 'Introduction', link: '/guide/introduction' },
           { text: 'Quick Start', link: '/guide/getting-started' },
+          { text: 'System Requirements', link: '/guide/system-requirements' },
           { text: 'Contributing', link: '/guide/contributing' },
           { text: 'Troubleshooting', link: '/guide/troubleshooting' }
         ]
