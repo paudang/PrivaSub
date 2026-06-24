@@ -66,8 +66,12 @@ class TestMainApp(unittest.TestCase):
                 app._loop_count = 0
             app._loop_count += 1
             if app._loop_count == 1:
-                return [1.0] * 1600 # Valid chunk
+                return [1.0] * 1600 # Valid chunk final
             elif app._loop_count == 2:
+                return [1.0] * 1600 # Valid chunk interim
+            elif app._loop_count == 3:
+                return [1.0] * 1600 # Valid chunk cache reuse
+            elif app._loop_count == 4:
                 app.is_paused = True # Cover paused condition
                 return [1.0] * 1600
             else:
@@ -75,11 +79,27 @@ class TestMainApp(unittest.TestCase):
                 return None
                 
         app.capture.get_audio_chunk.side_effect = fake_get_chunk
-        app.transcriber.process_audio.return_value = ("hello world", True)
+        app.transcriber.process_audio.side_effect = [
+            ("hello world", True),
+            ("hello interim", False),
+            ("hello interim", False),
+            ("paused chunk", True)
+        ]
         app.translator.translate.return_value = "Xin chào thế giới"
         
         app.audio_processing_loop()
         self.assertFalse(app.running)
+        
+        # Test window opening methods directly
+        app._show_transcriber_win()
+        app._show_transcriber_win() # already exists
+        app._show_settings_win()
+        app._show_settings_win() # already exists
+        
+        # Test tray icon missing fallback
+        with patch("os.path.exists", return_value=False):
+            img = app.get_tray_icon_image()
+            self.assertIsNotNone(img)
 
     @patch("src.main.PrivaSubApp")
     @patch("ctypes.windll.kernel32.GetLastError")
@@ -90,6 +110,11 @@ class TestMainApp(unittest.TestCase):
         
         main()
         mock_app_instance.run.assert_called_once()
+        
+        # Test main mutex already exists branch
+        mock_get_last_error.return_value = 183
+        with patch("tkinter.messagebox.showinfo"):
+            main()
 
 if __name__ == '__main__':
     unittest.main()
