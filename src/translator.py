@@ -73,8 +73,22 @@ class OfflineTranslator:
             return ""
 
         try:
+            # Pre-processing for better translation:
+            # 1. Clean whitespace
+            src_text = text.strip()
+            
+            # 2. Capitalize first letter (MarianMT translates capitalized sentences better)
+            if src_text and not src_text[0].isupper():
+                src_text = src_text[0].upper() + src_text[1:]
+                
+            # 3. Add ending period if no ending punctuation exists (provides complete sentence context)
+            added_period = False
+            if src_text and src_text[-1] not in ['.', '?', '!', ',', ';', ':', '-']:
+                src_text += "."
+                added_period = True
+
             # Tokenize text (AutoTokenizer automatically handles special tokens like </s>)
-            tokens = self.tokenizer.convert_ids_to_tokens(self.tokenizer.encode(text))
+            tokens = self.tokenizer.convert_ids_to_tokens(self.tokenizer.encode(src_text))
             
             # Translate tokens
             results = self.translator.translate_batch([tokens])
@@ -85,6 +99,12 @@ class OfflineTranslator:
                 self.tokenizer.convert_tokens_to_ids(target_tokens),
                 skip_special_tokens=True
             )
+            
+            # Post-processing:
+            # Strip trailing period if we artificially added one and the translation ended with it
+            if added_period and translated_text.endswith('.'):
+                translated_text = translated_text[:-1].strip()
+                
             return translated_text
         except Exception as e:
             logger.error(f"Translation failed for text '{text}': {e}")

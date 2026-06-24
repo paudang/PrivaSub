@@ -20,6 +20,7 @@ Built with privacy at its core, it runs **100% locally on your computer**—requ
 *   **Transparent Overlay:** A sleek, borderless, semi-transparent dark subtitle bar that floats on top of all windows.
 *   **Click-Through (Lock Mode):** Click right through the subtitles to interact with YouTube buttons or Zoom features underneath.
 *   **Auto-Hide & Fade-Out:** Subtitles automatically fade out and hide after 4–6 seconds of silence, restoring screen space when meetings pause or videos end.
+*   **Offline Batch File Transcriber:** Drag-and-drop or select any local video/audio file to extract audio and generate standard subtitles (`.srt` or `.vtt`) in English, Vietnamese, or Dual mode, saved directly next to the original file. Runs 100% offline using PyAV and Whisper.
 *   **High Performance local AI:** Uses `faster-whisper` and optimized CTranslate2 translation engines to deliver low-latency overlays using INT8 CPU quantization.
 
 ---
@@ -92,6 +93,13 @@ You can start the application using one of the following methods:
     python src/main.py
     ```
 
+### Running Automated Tests
+
+To execute the entire unit test suite and verify that all local modules (audio extraction, speech recognition, translation, and export formats) are functional, run:
+```bash
+python run_tests.py
+```
+
 > [!NOTE]
 > On your first run, the app will automatically download the optimized `tiny.en` Whisper transcription model (~75MB) and the `opus-mt-en-vi-ctranslate2` translation model (~150MB) from Hugging Face and cache them locally. Please allow a couple of minutes for the models to load.
 
@@ -100,6 +108,7 @@ You can start the application using one of the following methods:
 2. **Move/Position Overlay:** Right-click the Tray Icon and check **Toggle Draggable (Unlock)**. A border will appear, allowing you to drag the subtitle bar anywhere on the screen. Uncheck it to lock the position.
 3. **Lock (Click-Through):** When the window is locked (Toggle Draggable is unchecked), you can click directly "through" the subtitle text onto video players, Zoom controls, or window buttons behind it.
 4. **Pause/Resume:** Right-click the Tray Icon and select **Pause Listening** to pause audio capturing and save CPU resources. Select it again to resume.
+5. **Batch File Transcriber:** Right-click the Tray Icon and select **Open File Transcriber** to open the Batch File Transcriber window. Drag and drop any video/audio file, configure your output subtitle preferences (English, Vietnamese, or Dual) and format (SRT or VTT), and click **Start Transcribing & Export**.
 
 ### Stopping the Application
 To shut down the application completely:

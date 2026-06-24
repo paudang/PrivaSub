@@ -51,7 +51,8 @@ class SubtitleOverlay(ctk.CTk):
             font=ctk.CTkFont(family="Inter", size=18, weight="normal"),
             text_color="#FFFFFF",
             wraplength=self.win_width - 40,
-            justify="center"
+            justify="left",
+            anchor="w"
         )
         self.en_label.pack(expand=True, fill="x", padx=20, pady=(10, 2))
 
@@ -62,7 +63,8 @@ class SubtitleOverlay(ctk.CTk):
             font=ctk.CTkFont(family="Inter", size=18, weight="normal"),
             text_color="#FFD60A",
             wraplength=self.win_width - 40,
-            justify="center"
+            justify="left",
+            anchor="w"
         )
         self.vi_label.pack(expand=True, fill="x", padx=20, pady=(2, 10))
         

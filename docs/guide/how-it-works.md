@@ -51,3 +51,10 @@ Both the English transcript and the Vietnamese translation are pushed to the mai
 *   **Dual-Line Label Layout:** Built with `CustomTkinter` using an optimized always-on-top layout.
 *   **Windows Click-Through:** Uses ctypes Win32 window style attributes (`WS_EX_TRANSPARENT` and `WS_EX_LAYERED`) to lock the window and permit clicks to pass directly through the subtitles, avoiding interaction locks.
 *   **Dynamic Fade-out:** Monitored by a background timer that triggers a smooth alpha-channel opacity transition to completely hide the window after a short duration of silence.
+
+---
+
+## 7. In-Process Audio Extraction & Batch Subtitle Export
+For local files (video or audio), PrivaSub avoids spawning background command line tools or requiring external `ffmpeg.exe` binaries:
+*   **In-Process PyAV Resampling:** Uses PyAV (Pythonic bindings to FFmpeg libraries) via `av.AudioResampler` to programmatically extract the audio track from the media file, downmix it to mono, and resample it to 16kHz mono `pcm_s16le` format. Because this runs completely in-process, it is fast and fully bypasses Windows WDAC/AppLocker rules blocking external sub-process executions.
+*   **Batch Transcription & Exporter:** Coordinated by `BatchTranscriber` to load the local Whisper model, transcribe the entire extracted file, translate segments to Vietnamese (if requested) via `OfflineTranslator`, format standard SRT (`HH:MM:SS,mmm`) or VTT (`HH:MM:SS.mmm`) timestamp markers, write the output file to disk next to the original media file, and cleanly erase the temporary WAV data.

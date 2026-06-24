@@ -14,6 +14,7 @@ from audio import AudioCapture
 from transcriber import Transcriber
 from translator import OfflineTranslator
 from ui import SubtitleOverlay
+from file_transcriber_ui import FileTranscriberWindow
 
 class PrivaSubApp:
     def __init__(self):
@@ -37,6 +38,12 @@ class PrivaSubApp:
         self.app = SubtitleOverlay()
         self.app.set_click_through(self.is_locked)
         self.app.set_text("PrivaSub loaded. Listening to system audio...")
+        self.transcriber_win = None
+        
+        # Caching and rate-limiting variables for translations
+        self.last_translation_time = 0.0
+        self.last_translated_text = ""
+        self.cached_vi_text = ""
         
         # 2. Setup System Tray Icon
         self.tray_icon = None
@@ -67,6 +74,7 @@ class PrivaSubApp:
             pystray.MenuItem("Toggle Draggable (Unlock)", self.on_toggle_lock, checked=lambda item: not self.is_locked),
             pystray.MenuItem("Pause Listening", self.on_toggle_pause, checked=lambda item: self.is_paused),
             pystray.MenuItem("Show Translation (Vietnamese)", self.on_toggle_translation, checked=lambda item: self.show_translation),
+            pystray.MenuItem("Open File Transcriber", self.on_open_transcriber),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Show Caption Bar", self.on_show_bar),
             pystray.MenuItem("Exit", self.on_exit)
@@ -117,6 +125,22 @@ class PrivaSubApp:
         self.app.after(0, lambda: self.app.deiconify())
         self.app.after(0, self.app.set_text, "PrivaSub active - waiting for audio...", "", True)
 
+    def on_open_transcriber(self, icon, item):
+        """Callback to open the batch file transcriber window."""
+        self.app.after(0, self._show_transcriber_win)
+
+    def _show_transcriber_win(self):
+        if self.transcriber_win is not None:
+            try:
+                if self.transcriber_win.winfo_exists():
+                    self.transcriber_win.deiconify()
+                    self.transcriber_win.lift()
+                    self.transcriber_win.focus_force()
+                    return
+            except Exception:
+                pass
+        self.transcriber_win = FileTranscriberWindow(parent_app=self)
+
     def audio_processing_loop(self):
         """Background thread loop that pulls audio from the queue and feeds it to Whisper."""
         while self.running:
@@ -132,10 +156,34 @@ class PrivaSubApp:
                 res = self.transcriber.process_audio(chunk)
                 if res:
                     text, is_final = res
+                    
+                    # Capitalize first letter of English for display
+                    if text and not text[0].isupper():
+                        text = text[0].upper() + text[1:]
+                        
                     # Translate to Vietnamese offline only if enabled
                     vi_text = ""
                     if self.show_translation:
-                        vi_text = self.translator.translate(text)
+                        current_time = time.time()
+                        
+                        if is_final:
+                            # Always translate final segments immediately
+                            vi_text = self.translator.translate(text)
+                            self.last_translated_text = ""
+                            self.cached_vi_text = ""
+                        elif text == self.last_translated_text:
+                            # Reuse cache if text has not changed
+                            vi_text = self.cached_vi_text
+                        elif current_time - self.last_translation_time > 0.6:
+                            # Rate-limit translations of growing interim text (600ms) to prevent flickering
+                            vi_text = self.translator.translate(text)
+                            self.last_translation_time = current_time
+                            self.last_translated_text = text
+                            self.cached_vi_text = vi_text
+                        else:
+                            # Keep displaying cached text during rate limit interval
+                            vi_text = self.cached_vi_text
+                            
                     # Push UI update task to Tkinter main thread loop safely
                     self.app.after(0, self.app.set_text, text, vi_text, is_final)
             else:
@@ -151,7 +199,13 @@ class PrivaSubApp:
         if self.tray_icon:
             self.tray_icon.stop()
             
-        # Stop CustomTkinter UI
+        # Stop CustomTkinter UI and any secondary windows
+        if self.transcriber_win is not None:
+            try:
+                if self.transcriber_win.winfo_exists():
+                    self.transcriber_win.after(0, self.transcriber_win.destroy)
+            except Exception:
+                pass
         self.app.after(0, self.app.close)
 
     def run(self):
