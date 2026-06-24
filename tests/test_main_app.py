@@ -39,6 +39,39 @@ class TestMainApp(unittest.TestCase):
         # Test exit
         app.on_exit(None, None)
         self.assertFalse(app.running)
+        
+    @patch("src.main.AudioCapture")
+    @patch("src.main.Transcriber")
+    @patch("src.main.OfflineTranslator")
+    @patch("src.main.SubtitleOverlay")
+    @patch("src.main.pystray")
+    @patch("src.main.threading.Thread")
+    def test_audio_processing_loop(self, mock_thread, mock_pystray, mock_overlay, mock_trans, mock_whisper, mock_cap):
+        app = PrivaSubApp()
+        app.target_language = "Vietnamese"
+        app.running = True
+        app.is_paused = False
+        
+        # Define mock side effects to simulate loop execution and termination
+        def fake_get_chunk():
+            if not hasattr(app, '_loop_count'):
+                app._loop_count = 0
+            app._loop_count += 1
+            if app._loop_count == 1:
+                return [1.0] * 1600 # Valid chunk
+            elif app._loop_count == 2:
+                app.is_paused = True # Cover paused condition
+                return [1.0] * 1600
+            else:
+                app.running = False
+                return None
+                
+        app.capture.get_audio_chunk.side_effect = fake_get_chunk
+        app.transcriber.process_audio.return_value = ("hello world", True)
+        app.translator.translate.return_value = "Xin chào thế giới"
+        
+        app.audio_processing_loop()
+        self.assertFalse(app.running)
 
     @patch("src.main.PrivaSubApp")
     @patch("ctypes.windll.kernel32.GetLastError")

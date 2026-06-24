@@ -321,5 +321,80 @@ class TestAdditionalWindows(unittest.TestCase):
         # Reload with original
         reload(src.ui.batch.dnd_base)
 
+    @patch("src.core.config.AppConfig.load")
+    def test_batch_window_extended_coverage(self, mock_load):
+        mock_load.return_value = DEFAULT_CONFIG.copy()
+        win = FileTranscriberWindow()
+        win.withdraw()
+        
+        # Test run_batch_process with parent_app configured
+        parent = MagicMock()
+        parent.transcriber = MagicMock()
+        parent.transcriber.model_size = "tiny"
+        parent.transcriber.device = "cpu"
+        parent.transcriber.compute_type = "int8"
+        parent.target_language = "Vietnamese"
+        win.parent_app = parent
+        
+        with patch("src.ui.batch.window.BatchTranscriber") as MockTranscriber:
+            instance = MockTranscriber.return_value
+            # Define side_effect to trigger progress_callback
+            def fake_process(*args, **kwargs):
+                cb = kwargs.get('progress_callback')
+                if cb:
+                    cb(50, "Transcribing")
+                return "C:/fake.srt"
+            instance.process_file.side_effect = fake_process
+            
+            with patch("os.path.exists", return_value=True):
+                win.run_batch_process("C:/fake.mp4", "en", "srt")
+                
+        # Test open_subtitles_folder
+        win.output_sub_file = "C:/fake.srt"
+        with patch("os.path.exists", return_value=True), patch("os.system") as mock_sys:
+            win.open_subtitles_folder()
+            mock_sys.assert_called()
+            
+        # Test on_close cancel processing No
+        win.is_processing = True
+        with patch("tkinter.messagebox.askyesno", return_value=False):
+            win.on_close()
+            self.assertTrue(win.is_processing)
+            
+        win.is_processing = False
+        win.on_close()
+
+    @patch("src.core.config.AppConfig.load")
+    def test_overlay_extended_coverage(self, mock_load):
+        mock_load.return_value = DEFAULT_CONFIG.copy()
+        app = SubtitleOverlay()
+        app.withdraw()
+        
+        # Test locked conditions
+        app.is_locked = True
+        mock_event = MagicMock()
+        app.on_mousewheel(mock_event)
+        app.start_drag(mock_event)
+        app.drag(mock_event)
+        app.start_resize(mock_event)
+        app.do_resize(mock_event)
+        
+        # Test fade conditions
+        app.is_fading = True
+        app.start_fade()
+        app._fade_step(1.0, 0.0, 10)
+        
+        app.is_fading = False
+        app._fade_step(1.0, 0.0, 10) # cancelled
+        
+        app.is_fading = True
+        app._fade_step(1.0, 0.0, 0) # complete
+        
+        # Test set_translation_visible False
+        app.set_translation_visible(False)
+        self.assertEqual(app.min_height, 110)
+        
+        app.close()
+
 if __name__ == "__main__":
     unittest.main()
