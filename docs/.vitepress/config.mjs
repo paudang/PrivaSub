@@ -26,10 +26,16 @@ export default defineConfig({
         ]
       },
       {
-        text: 'Core Features',
+        text: 'Features',
         items: [
-          { text: 'Configuration & Settings', link: '/guide/configuration' },
-          { text: 'Under the Hood (VAD & Loopback)', link: '/guide/how-it-works' },
+          { text: 'User Interface', link: '/features/ui' },
+          { text: 'Configuration', link: '/features/configuration' },
+        ]
+      },
+      {
+        text: 'Architecture',
+        items: [
+          { text: 'System Architecture', link: '/architecture/system-architecture' },
         ]
       }
     ],

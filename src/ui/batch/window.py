@@ -5,40 +5,16 @@ import logging
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
 
-# Set up logging
 logger = logging.getLogger("PrivaSub.FileTranscriberUI")
 
-# Drag-and-drop capability detection
-try:
-    from tkinterdnd2 import TkinterDnD, DND_FILES
-    HAS_TKDND = True
-except ImportError:
-    HAS_TKDND = False
+from src.ui.batch.dnd_base import FileTranscriberBase, HAS_TKDND
 
-# Import batch processor
 try:
-    from batch_processor import BatchTranscriber
+    from tkinterdnd2 import DND_FILES
 except ImportError:
-    # If run directly as a test/script
-    sys.path.append(os.path.dirname(__file__))
-    from batch_processor import BatchTranscriber
+    pass
 
-# Define base class depending on DnD availability
-if HAS_TKDND:
-    class FileTranscriberBase(ctk.CTkToplevel, TkinterDnD.DnDWrapper):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            try:
-                self.TkdndVersion = TkinterDnD._require(self)
-                self.tkdnd_active = True
-            except Exception as e:
-                logger.warning(f"Failed to load TkinterDnD extension: {e}. Falling back to click-to-select.")
-                self.tkdnd_active = False
-else:
-    class FileTranscriberBase(ctk.CTkToplevel):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self.tkdnd_active = False
+from src.services.batch_processor import BatchTranscriber
 
 class FileTranscriberWindow(FileTranscriberBase):
     def __init__(self, parent_app=None):
@@ -57,6 +33,14 @@ class FileTranscriberWindow(FileTranscriberBase):
         
         # Apply dark premium theme
         self.configure(fg_color="#121212")
+        
+        # Set icon if available
+        icon_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "assets", "icon.ico")
+        if os.path.exists(icon_path):
+            try:
+                self.iconbitmap(icon_path)
+            except Exception:
+                pass
         
         # Ensure proper close handling
         self.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -126,7 +110,7 @@ class FileTranscriberWindow(FileTranscriberBase):
         self.drop_label.bind("<Button-1>", lambda e: self.browse_file())
 
         # Register Drop Target if DnD is active
-        if self.tkdnd_active:
+        if self.tkdnd_active and HAS_TKDND:
             self.drop_frame.drop_target_register(DND_FILES)
             self.drop_frame.dnd_bind('<<Drop>>', self.handle_drop)
             self.drop_label.drop_target_register(DND_FILES)
@@ -239,8 +223,6 @@ class FileTranscriberWindow(FileTranscriberBase):
             height=36,
             command=self.open_subtitles_folder
         )
-        # Open folder button is hidden initially
-        # We pack/unpack it dynamically
         self.open_folder_btn.pack_forget()
 
     def handle_drop(self, event):
@@ -336,9 +318,10 @@ class FileTranscriberWindow(FileTranscriberBase):
         
         # If main app is running real-time captions, temporarily pause them to conserve RAM/CPU
         self.was_realtime_running = False
-        if self.parent_app and not self.parent_app.is_paused:
+        if self.parent_app and not getattr(self.parent_app, 'is_paused', True):
             logger.info("Pausing real-time capture during batch transcription")
-            self.parent_app.on_toggle_pause(None, None)
+            if hasattr(self.parent_app, 'on_toggle_pause'):
+                self.parent_app.on_toggle_pause(None, None)
             self.was_realtime_running = True
 
         # Run in separate thread
@@ -405,9 +388,10 @@ class FileTranscriberWindow(FileTranscriberBase):
         self.progress_bar.set(1.0)
         
         # Restore real-time captions if we paused them
-        if self.was_realtime_running and self.parent_app and self.parent_app.is_paused:
+        if self.was_realtime_running and self.parent_app and getattr(self.parent_app, 'is_paused', False):
             logger.info("Resuming real-time capture after batch transcription completion")
-            self.parent_app.on_toggle_pause(None, None)
+            if hasattr(self.parent_app, 'on_toggle_pause'):
+                self.parent_app.on_toggle_pause(None, None)
             self.was_realtime_running = False
         
         # Show Open Folder Button
@@ -430,9 +414,10 @@ class FileTranscriberWindow(FileTranscriberBase):
         self.progress_bar.set(0)
         
         # Restore real-time captions if we paused them
-        if self.was_realtime_running and self.parent_app and self.parent_app.is_paused:
+        if self.was_realtime_running and self.parent_app and getattr(self.parent_app, 'is_paused', False):
             logger.info("Resuming real-time capture after batch transcription failure")
-            self.parent_app.on_toggle_pause(None, None)
+            if hasattr(self.parent_app, 'on_toggle_pause'):
+                self.parent_app.on_toggle_pause(None, None)
             self.was_realtime_running = False
         
         messagebox.showerror("Transcription Failed", f"An error occurred during transcription:\n\n{error_msg}")
@@ -440,7 +425,6 @@ class FileTranscriberWindow(FileTranscriberBase):
     def open_subtitles_folder(self):
         if self.output_sub_file and os.path.exists(self.output_sub_file):
             folder = os.path.dirname(self.output_sub_file)
-            # Use explorer select to highlight the file on Windows
             if sys.platform == "win32":
                 os.system(f'explorer /select,"{os.path.normpath(self.output_sub_file)}"')
             else:
@@ -452,9 +436,10 @@ class FileTranscriberWindow(FileTranscriberBase):
                 return
         
         # Restore real-time captions if we paused them
-        if self.was_realtime_running and self.parent_app and self.parent_app.is_paused:
+        if self.was_realtime_running and self.parent_app and getattr(self.parent_app, 'is_paused', False):
             logger.info("Resuming real-time capture on closing transcriber window")
-            self.parent_app.on_toggle_pause(None, None)
+            if hasattr(self.parent_app, 'on_toggle_pause'):
+                self.parent_app.on_toggle_pause(None, None)
             self.was_realtime_running = False
         
         # Remove reference from parent app if set
@@ -464,13 +449,11 @@ class FileTranscriberWindow(FileTranscriberBase):
         self.destroy()
 
 if __name__ == "__main__":
-    # Test script to verify the layout and look
     ctk.set_appearance_mode("dark")
     ctk.set_default_color_theme("blue")
     root = ctk.CTk()
-    root.withdraw() # Hide root for testing window
+    root.withdraw()
     win = FileTranscriberWindow()
-    # Define a mock on_close that exits python
     def mock_close():
         win.destroy()
         root.destroy()

@@ -6,7 +6,7 @@ import numpy as np
 # Add src directory to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
 
-from transcriber import Transcriber
+from src.core.ai.transcriber import Transcriber
 
 class TestTranscriber(unittest.TestCase):
     @classmethod

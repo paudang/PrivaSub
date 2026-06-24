@@ -8,7 +8,7 @@ import math
 # Add src directory to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
 
-from batch_processor import BatchTranscriber, format_timestamp
+from src.services.batch_processor import BatchTranscriber, format_timestamp
 
 class TestBatchProcessor(unittest.TestCase):
     def setUp(self):

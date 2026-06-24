@@ -1,0 +1,29 @@
+#!/bin/sh
+
+echo "==============================================================="
+echo "   PrivaSub Pre-Push Hook: Running Unit Tests & Coverage"
+echo "==============================================================="
+
+# 1. Run Tests with Coverage
+echo "Running tests..."
+coverage run run_tests.py
+TEST_EXIT_CODE=$?
+
+if [ $TEST_EXIT_CODE -ne 0 ]; then
+    echo "❌ Unit tests failed! Please fix the errors before pushing."
+    exit 1
+fi
+
+echo "✅ All tests passed. Checking coverage (Target: 80%)..."
+
+# 2. Check Coverage Report
+coverage report -m --fail-under=80
+COVERAGE_EXIT_CODE=$?
+
+if [ $COVERAGE_EXIT_CODE -ne 0 ]; then
+    echo "❌ Test coverage is below 80%! Please write more tests before pushing."
+    exit 1
+fi
+
+echo "✅ Coverage is 80% or higher. Push allowed!"
+exit 0

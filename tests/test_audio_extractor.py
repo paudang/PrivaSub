@@ -8,7 +8,7 @@ import math
 # Add src directory to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
 
-from audio_extractor import extract_audio_to_wav
+from src.core.audio.file_extractor import extract_audio_to_wav
 
 class TestAudioExtractor(unittest.TestCase):
     def setUp(self):

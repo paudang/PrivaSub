@@ -3,8 +3,8 @@ import sys
 import time
 import logging
 from faster_whisper import WhisperModel
-from translator import OfflineTranslator
-from audio_extractor import extract_audio_to_wav
+from src.core.ai.translator import OfflineTranslator
+from src.core.audio.file_extractor import extract_audio_to_wav
 
 logger = logging.getLogger("PrivaSub.BatchProcessor")
 

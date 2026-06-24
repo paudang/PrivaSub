@@ -1,4 +1,4 @@
-# How it Works Under the Hood
+# System Architecture
 
 This page covers the technical architecture and pipeline behind PrivaSub.
 
@@ -48,9 +48,10 @@ Once English text is transcribed by the Whisper engine, it is passed to the offl
 
 ## 6. Transparent Dual Subtitle Overlay
 Both the English transcript and the Vietnamese translation are pushed to the main thread's GUI:
-*   **Dual-Line Label Layout:** Built with `CustomTkinter` using an optimized always-on-top layout.
+*   **Scrollable Textbox Layout:** Built with `CustomTkinter` using an optimized always-on-top layout that retains history so users can scroll back to read past subtitles.
 *   **Windows Click-Through:** Uses ctypes Win32 window style attributes (`WS_EX_TRANSPARENT` and `WS_EX_LAYERED`) to lock the window and permit clicks to pass directly through the subtitles, avoiding interaction locks.
 *   **Dynamic Fade-out:** Monitored by a background timer that triggers a smooth alpha-channel opacity transition to completely hide the window after a short duration of silence.
+*(For a full list of UI interactions, see [User Interface Features](../features/ui.md))*
 
 ---
 
@@ -58,3 +59,28 @@ Both the English transcript and the Vietnamese translation are pushed to the mai
 For local files (video or audio), PrivaSub avoids spawning background command line tools or requiring external `ffmpeg.exe` binaries:
 *   **In-Process PyAV Resampling:** Uses PyAV (Pythonic bindings to FFmpeg libraries) via `av.AudioResampler` to programmatically extract the audio track from the media file, downmix it to mono, and resample it to 16kHz mono `pcm_s16le` format. Because this runs completely in-process, it is fast and fully bypasses Windows WDAC/AppLocker rules blocking external sub-process executions.
 *   **Batch Transcription & Exporter:** Coordinated by `BatchTranscriber` to load the local Whisper model, transcribe the entire extracted file, translate segments to Vietnamese (if requested) via `OfflineTranslator`, format standard SRT (`HH:MM:SS,mmm`) or VTT (`HH:MM:SS.mmm`) timestamp markers, write the output file to disk next to the original media file, and cleanly erase the temporary WAV data.
+
+---
+
+## 8. Source Code Structure
+PrivaSub is organized into feature-specific folders to keep the codebase modular, maintainable, and highly decoupled.
+
+```text
+src/
+├── main.py                     # Main application entry point & tray icon
+├── core/                       # Core Processing & AI Logic
+│   ├── audio/                  # Audio I/O
+│   │   ├── system_audio.py     # WASAPI Loopback capture for live transcription
+│   │   └── file_extractor.py   # PyAV audio track extraction for media files
+│   └── ai/                     # Local AI Models
+│       ├── transcriber.py      # faster-whisper and VAD integration
+│       └── translator.py       # CTranslate2 MarianMT offline translation
+├── ui/                         # User Interface components
+│   ├── live/                   # Real-time subtitle overlay
+│   │   └── overlay.py          # CustomTkinter overlay with click-through and smart auto-scroll
+│   └── batch/                  # Offline File Transcriber UI
+│       ├── window.py           # Main batch transcriber window
+│       └── dnd_base.py         # Drag-and-drop wrapper and fallback logic
+└── services/                   # Background Services
+    └── batch_processor.py      # Batch subtitle extraction, transcription, and export pipeline
+```

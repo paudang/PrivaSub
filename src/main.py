@@ -7,21 +7,29 @@ from PIL import Image, ImageDraw
 import pystray
 import customtkinter as ctk
 
-# Add src directory to path
-sys.path.append(os.path.dirname(__file__))
+# Add project root directory to path to support 'src.' imports
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from audio import AudioCapture
-from transcriber import Transcriber
-from translator import OfflineTranslator
-from ui import SubtitleOverlay
-from file_transcriber_ui import FileTranscriberWindow
+from src.core.audio.system_audio import AudioCapture
+from src.core.ai.transcriber import Transcriber
+from src.core.ai.translator import OfflineTranslator
+from src.ui.live.overlay import SubtitleOverlay
+from src.ui.batch.window import FileTranscriberWindow
+from src.ui.settings.window import SettingsWindow
+from src.core.config import AppConfig
 
 class PrivaSubApp:
     def __init__(self):
         self.running = True
         self.is_paused = False
         self.is_locked = True  # Start locked (click-through) by default as requested
-        self.show_translation = True  # Show Vietnamese translation by default
+        
+        # Load user settings
+        self.config = AppConfig.load()
+        old_show = self.config.get("show_translation")
+        self.target_language = self.config.get("target_language", "None (English Only)")
+        if old_show is True and self.target_language == "None (English Only)":
+            self.target_language = "Vietnamese"
         
         # 1. Initialize components
         print("[Main] Initializing PrivaSub components...")
@@ -39,6 +47,15 @@ class PrivaSubApp:
         self.app.set_click_through(self.is_locked)
         self.app.set_text("PrivaSub loaded. Listening to system audio...")
         self.transcriber_win = None
+        self.settings_win = None
+        
+        # Set app icon
+        icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "icon.ico")
+        if os.path.exists(icon_path):
+            try:
+                self.app.iconbitmap(icon_path)
+            except Exception as e:
+                print(f"[Main] Failed to set window icon: {e}")
         
         # Caching and rate-limiting variables for translations
         self.last_translation_time = 0.0
@@ -57,13 +74,19 @@ class PrivaSubApp:
         self.capture.start()
         print("[Main] Ready! App minimized to System Tray.")
 
-    def create_tray_icon_image(self):
-        """Generates a 64x64 pixel subtitle-like icon programmatically using Pillow."""
+    def get_tray_icon_image(self):
+        """Loads custom icon or falls back to programmatic generation."""
+        icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "icon.png")
+        if os.path.exists(icon_path):
+            try:
+                return Image.open(icon_path)
+            except Exception as e:
+                print(f"[Main] Failed to load tray icon: {e}")
+                
+        # Fallback generated icon
         image = Image.new('RGBA', (64, 64), color=(0, 0, 0, 0))
         dc = ImageDraw.Draw(image)
-        # Draw dark rounded rectangle background
         dc.rounded_rectangle([4, 16, 60, 48], radius=8, fill="#1C1C1E", outline="#0A84FF", width=2)
-        # Draw two text subtitle lines
         dc.rectangle([12, 26, 42, 30], fill="#FFFFFF")
         dc.rectangle([12, 34, 52, 38], fill="#0A84FF")
         return image
@@ -73,8 +96,10 @@ class PrivaSubApp:
         menu = pystray.Menu(
             pystray.MenuItem("Toggle Draggable (Unlock)", self.on_toggle_lock, checked=lambda item: not self.is_locked),
             pystray.MenuItem("Pause Listening", self.on_toggle_pause, checked=lambda item: self.is_paused),
-            pystray.MenuItem("Show Translation (Vietnamese)", self.on_toggle_translation, checked=lambda item: self.show_translation),
+            pystray.MenuItem("Show Translation (Vietnamese)", self.on_toggle_translation, checked=lambda item: self.target_language != "None (English Only)"),
+            pystray.Menu.SEPARATOR,
             pystray.MenuItem("Open File Transcriber", self.on_open_transcriber),
+            pystray.MenuItem("Settings", self.on_open_settings),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Show Caption Bar", self.on_show_bar),
             pystray.MenuItem("Exit", self.on_exit)
@@ -82,7 +107,7 @@ class PrivaSubApp:
         
         self.tray_icon = pystray.Icon(
             "PrivaSub",
-            icon=self.create_tray_icon_image(),
+            icon=self.get_tray_icon_image(),
             title="PrivaSub - Offline Captions",
             menu=menu
         )
@@ -115,10 +140,20 @@ class PrivaSubApp:
 
     def on_toggle_translation(self, icon, item):
         """Toggles the visibility of translation subtitles."""
-        self.show_translation = not self.show_translation
-        print(f"[Main] Show translation toggled: {self.show_translation}")
+        if self.target_language == "None (English Only)":
+            self.target_language = "Vietnamese"
+        else:
+            self.target_language = "None (English Only)"
+            
+        print(f"[Main] Target language toggled: {self.target_language}")
+        
+        # Save to config
+        self.config["target_language"] = self.target_language
+        AppConfig.save(self.config)
+        
         # Update UI layout on main thread
-        self.app.after(0, self.app.set_translation_visible, self.show_translation)
+        show_trans = (self.target_language != "None (English Only)")
+        self.app.after(0, self.app.set_translation_visible, show_trans)
 
     def on_show_bar(self, icon, item):
         """Forcibly shows the caption bar on screen."""
@@ -141,6 +176,27 @@ class PrivaSubApp:
                 pass
         self.transcriber_win = FileTranscriberWindow(parent_app=self)
 
+    def on_open_settings(self, icon, item):
+        self.app.after(0, self._show_settings_win)
+
+    def _show_settings_win(self):
+        if self.settings_win is not None:
+            try:
+                if self.settings_win.winfo_exists():
+                    self.settings_win.deiconify()
+                    self.settings_win.lift()
+                    self.settings_win.focus_force()
+                    return
+            except Exception:
+                pass
+        
+        def on_settings_saved(new_config):
+            self.config = new_config
+            self.target_language = new_config.get("target_language", "None (English Only)")
+            self.app.apply_config(new_config)
+            
+        self.settings_win = SettingsWindow(parent_app=self, on_save_callback=on_settings_saved)
+
     def audio_processing_loop(self):
         """Background thread loop that pulls audio from the queue and feeds it to Whisper."""
         while self.running:
@@ -161,9 +217,9 @@ class PrivaSubApp:
                     if text and not text[0].isupper():
                         text = text[0].upper() + text[1:]
                         
-                    # Translate to Vietnamese offline only if enabled
+                    # Translate offline only if a target language is selected
                     vi_text = ""
-                    if self.show_translation:
+                    if self.target_language != "None (English Only)":
                         current_time = time.time()
                         
                         if is_final:
@@ -218,6 +274,16 @@ class PrivaSubApp:
 def main():
     # Hide the default console window on Windows when starting (optional but good for release)
     # We keep it visible for now during testing
+    
+    # Tell Windows this is a distinct app so the taskbar uses our custom icon instead of Python's
+    import ctypes
+    if sys.platform == 'win32':
+        try:
+            myappid = 'privasub.desktop.app.1'
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+        except Exception:
+            pass
+            
     app = PrivaSubApp()
     app.run()
 
