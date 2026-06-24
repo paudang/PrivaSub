@@ -7,18 +7,20 @@ Built with privacy at its core, it runs **100% locally on your computer**—requ
 
 > [!IMPORTANT]
 > **Language Support:** 
-> Currently, the application only supports **English audio input** and generates **English subtitles** (English-to-English transcription). Real-time translation to other languages (such as Vietnamese) is scheduled for the next release (see the **Roadmap** below).
+> Currently, the application supports **English audio input** and generates **dual subtitles** in real-time (English transcript on top, Vietnamese translation on the bottom). Both speech recognition and translation run 100% offline.
 
 ---
 
 ## Key Features
 
+*   **Real-Time Offline Translation:** Translates English audio directly to Vietnamese on-the-fly using an optimized offline MarianMT model.
+*   **Dual Subtitle Layout:** Displays both the original English speech and the translated Vietnamese text simultaneously.
 *   **System Tray Integration:** Runs silently in your taskbar (System Tray), keeping your workspace clutter-free.
 *   **VAD-Powered Low CPU Usage:** Utilizes *Silero Voice Activity Detection (VAD)*. The transcription engine remains idle (consuming ~0% CPU) during silence or music, triggering only when speech is detected.
 *   **Transparent Overlay:** A sleek, borderless, semi-transparent dark subtitle bar that floats on top of all windows.
 *   **Click-Through (Lock Mode):** Click right through the subtitles to interact with YouTube buttons or Zoom features underneath.
 *   **Auto-Hide & Fade-Out:** Subtitles automatically fade out and hide after 4–6 seconds of silence, restoring screen space when meetings pause or videos end.
-*   **High Performance local STT:** Uses `faster-whisper` (OpenAI Whisper optimized with CTranslate2) to deliver low-latency transcription using INT8 CPU quantization.
+*   **High Performance local AI:** Uses `faster-whisper` and optimized CTranslate2 translation engines to deliver low-latency overlays using INT8 CPU quantization.
 
 ---
 
@@ -32,10 +34,13 @@ Built with privacy at its core, it runs **100% locally on your computer**—requ
                                                 │
                                       (If Speech Detected)
                                                 ▼
-[Local Whisper Engine (tiny.en)] ──> [Real-time Subtitle Text]
+[Local Whisper Engine (tiny.en)] ──> [Real-time English Text]
                                                 │
                                                 ▼
-                                    [Transparent Click-Through GUI]
+[Offline Translator (MarianMT)] ──> [Real-time Vietnamese Text]
+                                                │
+                                                ▼
+                                    [Transparent Dual-Subtitle GUI]
 ```
 
 ---
@@ -88,7 +93,7 @@ You can start the application using one of the following methods:
     ```
 
 > [!NOTE]
-> On your first run, the app will automatically download the optimized `tiny.en` Whisper model (~75MB) and cache it locally. Please allow a minute for the models to load.
+> On your first run, the app will automatically download the optimized `tiny.en` Whisper transcription model (~75MB) and the `opus-mt-en-vi-ctranslate2` translation model (~150MB) from Hugging Face and cache them locally. Please allow a couple of minutes for the models to load.
 
 ### Interacting with the Subtitles
 1. **Locate the Tray Icon:** A blue-and-white subtitle icon will appear in your Windows System Tray (bottom-right taskbar).
