@@ -55,3 +55,6 @@ dist/
 
 # Templates
 trello_tickets.md
+
+#Test report
+coverage_out.txt

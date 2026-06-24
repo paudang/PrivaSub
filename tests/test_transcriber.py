@@ -2,6 +2,7 @@ import os
 import sys
 import unittest
 import numpy as np
+from unittest.mock import MagicMock
 
 # Add src directory to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
@@ -63,6 +64,72 @@ class TestTranscriber(unittest.TestCase):
         
         # Audio buffer should be cropped to 1.0 second context (16000 samples)
         self.assertEqual(len(self.transcriber.audio_buffer), 16000)
+
+    def test_silence_timeout(self):
+        """Verifies that sustained silence after speech triggers finalization."""
+        self.transcriber.speech_detected = True
+        self.transcriber.last_text = "Previously detected speech"
+        # Since chunk is 1 second, one process_audio call adds 1 to silence_ticks.
+        # So we set it to threshold - 1, expecting it to trigger finalization on the next silent chunk.
+        self.transcriber.silence_ticks = self.transcriber.silence_threshold_seconds - 1
+        
+        silent_audio = np.zeros(16000, dtype=np.float32)
+        result = self.transcriber.process_audio(silent_audio)
+        
+        self.assertIsNotNone(result)
+        text, is_final = result
+        self.assertEqual(text, "Previously detected speech")
+        self.assertTrue(is_final)
+
+    def test_transcribe_single_segment(self):
+        """Verifies transcription of a single interim segment."""
+        audio = np.ones(16000, dtype=np.float32)
+        
+        class DummySegment:
+            def __init__(self, text, start):
+                self.text = text
+                self.start = start
+                
+        # Backup original models
+        orig_transcribe = self.transcriber.model.transcribe
+        
+        try:
+            # Mock Whisper to return one segment
+            self.transcriber.model.transcribe = MagicMock(return_value=([DummySegment("Hello", 0.0)], None))
+            
+            result = self.transcriber.process_audio(audio)
+            self.assertIsNotNone(result)
+            text, is_final = result
+            self.assertEqual(text, "Hello")
+            self.assertFalse(is_final)
+        finally:
+            # Restore
+            self.transcriber.model.transcribe = orig_transcribe
+
+    def test_transcribe_multiple_segments(self):
+        """Verifies transcription logic when multiple segments are returned (auto-finalizing earlier ones)."""
+        audio = np.ones(32000, dtype=np.float32)
+        
+        class DummySegment:
+            def __init__(self, text, start):
+                self.text = text
+                self.start = start
+                
+        orig_transcribe = self.transcriber.model.transcribe
+        
+        try:
+            self.transcriber.model.transcribe = MagicMock(return_value=([
+                DummySegment("Hello", 0.0),
+                DummySegment("world", 1.0)
+            ], None))
+            
+            result = self.transcriber.process_audio(audio)
+            self.assertIsNotNone(result)
+            text, is_final = result
+            self.assertEqual(text, "Hello")
+            self.assertTrue(is_final)
+        finally:
+            self.transcriber.model.transcribe = orig_transcribe
 
 if __name__ == '__main__':
     unittest.main()
