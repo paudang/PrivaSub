@@ -22,4 +22,8 @@ features:
     details: Elegant borderless transparent overlay that sits on top of all apps and allows mouse clicks to pass right through.
   - title: Low CPU Footprint (VAD)
     details: Integrates Silero Voice Activity Detection to keep the system idle (consuming ~0% CPU) when there is no speech.
+  - title: Offline Batch Transcriber
+    details: Transcribe and translate existing video or audio files via a built-in UI, exporting directly to .srt or .vtt formats.
+  - title: Fully Customizable UI
+    details: Resize the subtitle overlay, drag it seamlessly across multiple monitors, and adjust opacity, timeouts, and languages on the fly.
 ---

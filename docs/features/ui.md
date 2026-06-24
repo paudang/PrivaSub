@@ -29,8 +29,19 @@ The overlay is designed to hover over your other applications (like Zoom, Chrome
 ### Dynamic Auto-Hide
 If nobody is speaking for a few seconds, the overlay smoothly fades out and hides itself to keep your screen clean. It instantly reappears the moment speech is detected again.
 
+### Resizable & Multi-Monitor Support
+The overlay is fully resizable by dragging its edges. PrivaSub intelligently detects multi-monitor environments. When you open any popup window (like Settings or the Batch Transcriber), it will automatically spawn perfectly centered on the specific monitor where you are currently viewing the subtitles.
+
+## The Settings UI
+Accessible by right-clicking the System Tray icon. The Settings UI allows you to customize the application on the fly:
+* **Max History Lines**: Adjust how many lines of past subtitles to keep in memory.
+* **Auto-Hide Timeout**: Configure how many seconds of silence before the overlay gracefully fades out.
+* **Opacity**: Adjust the background transparency of the subtitle overlay.
+* **Target Language**: Easily switch between English-only or translated Vietnamese subtitles.
+
 ## The Batch Transcription UI
-The main application window provides a dashboard for transcribing existing video or audio files. It features:
-* **Drag-and-Drop**: Easily drop files to be transcribed.
-* **Auto Pause/Resume**: If you start a batch job while live captions are running, the live captions will automatically pause to prevent overlapping audio and resume once the batch is done.
+The main application window provides an offline dashboard for transcribing existing video or audio files. It features:
+* **Drag-and-Drop**: Easily drop media files to be transcribed.
+* **Auto Pause/Resume**: If you start a batch job while live captions are running, the live captions will automatically pause to prevent overlapping audio, and resume once the batch is done.
 * **File Overwrite Protection**: Warns you before overwriting existing `.srt` or `.vtt` files.
+* **Progress Tracking**: Real-time progress bar for long video files.

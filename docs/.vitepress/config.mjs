@@ -4,12 +4,14 @@ export default defineConfig({
   title: "PrivaSub",
   description: "Offline, Privacy-First Desktop Captions Overlay.",
   base: '/PrivaSub/',
+  head: [['link', { rel: 'icon', href: '/PrivaSub/favicon.png' }]],
   themeConfig: {
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Guide', link: '/guide/introduction' },
       { text: 'Roadmap', link: 'https://trello.com/b/dP5oqzYl/privasub' },
-      { text: 'Changelog', link: 'https://github.com/paudang/PrivaSub/blob/main/changelog.md' }
+      { text: 'Changelog', link: 'https://github.com/paudang/PrivaSub/blob/main/changelog.md' },
+      { text: 'v1.0.0', link: 'https://github.com/paudang/PrivaSub/releases' }
     ],
 
     editLink: {
@@ -23,6 +25,8 @@ export default defineConfig({
         items: [
           { text: 'Introduction', link: '/guide/introduction' },
           { text: 'Quick Start', link: '/guide/getting-started' },
+          { text: 'Contributing', link: '/guide/contributing' },
+          { text: 'Troubleshooting', link: '/guide/troubleshooting' }
         ]
       },
       {

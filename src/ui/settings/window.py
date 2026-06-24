@@ -12,8 +12,9 @@ class SettingsWindow(ctk.CTkToplevel):
         
         # Configure window properties
         self.title("PrivaSub - Settings")
-        self.geometry("450x620")
-        self.resizable(False, False)
+        self.geometry("420x550")
+        self.minsize(400, 500)
+        self.resizable(True, True)
         self.configure(fg_color="#121212")
         
         # Set icon if available
@@ -33,8 +34,15 @@ class SettingsWindow(ctk.CTkToplevel):
         self.update_idletasks()
         width = self.winfo_width()
         height = self.winfo_height()
-        x = (self.winfo_screenwidth() // 2) - (width // 2)
-        y = (self.winfo_screenheight() // 2) - (height // 2)
+        
+        if self.parent_app and hasattr(self.parent_app, 'app') and self.parent_app.app:
+            overlay = self.parent_app.app
+            x = overlay.winfo_x() + (overlay.winfo_width() // 2) - (width // 2)
+            y = overlay.winfo_y() + (overlay.winfo_height() // 2) - (height // 2)
+        else:
+            x = (self.winfo_screenwidth() // 2) - (width // 2)
+            y = (self.winfo_screenheight() // 2) - (height // 2)
+            
         self.geometry(f"{width}x{height}+{x}+{y}")
 
     def setup_ui(self):
@@ -49,6 +57,10 @@ class SettingsWindow(ctk.CTkToplevel):
 
         self.main_frame = ctk.CTkFrame(self, fg_color="#1C1C1E", corner_radius=12)
         self.main_frame.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        
+        # Configure columns so the slider expands when resizing the window
+        self.main_frame.grid_columnconfigure(0, weight=1)
+        self.main_frame.grid_columnconfigure(1, weight=0)
 
         # 1. Max History Lines
         self._create_label(self.main_frame, "Max Subtitle History Lines", 0)

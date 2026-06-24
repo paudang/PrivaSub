@@ -1,6 +1,7 @@
 import os
 import sys
 import unittest
+from unittest.mock import patch
 
 # Add src directory to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
@@ -54,6 +55,24 @@ class TestTranslator(unittest.TestCase):
         self.assertEqual(self.translator.translate(""), "")
         self.assertEqual(self.translator.translate("   "), "")
         self.assertEqual(self.translator.translate(None), "")
+
+    def test_translation_error_handling(self):
+        with patch.object(self.translator.tokenizer, 'convert_ids_to_tokens', side_effect=Exception("Test Error")):
+            result = self.translator.translate("Hello")
+            # In case of error, it should log and return the original text
+            self.assertEqual(result, "Hello")
+            
+    def test_model_download_logic(self):
+        with patch('src.core.ai.translator.os.path.exists') as mock_exists:
+            # First 5 calls check if model files exist, return False to trigger download
+            mock_exists.return_value = False
+            
+            with patch('src.core.ai.translator.snapshot_download') as mock_download:
+                with patch('src.core.ai.translator.os.makedirs'):
+                    # Create translator with dummy path
+                    with patch.object(OfflineTranslator, '_load_model'):
+                        translator = OfflineTranslator(model_dir="dummy/path")
+                        mock_download.assert_called_once()
 
 if __name__ == '__main__':
     unittest.main()

@@ -14,10 +14,10 @@ if [ $TEST_EXIT_CODE -ne 0 ]; then
     exit 1
 fi
 
-echo "✅ All tests passed. Checking coverage (Target: 80%)..."
+echo "✅ All tests passed. Checking coverage (Target: 90%)..."
 
 # 2. Check Coverage Report
-coverage report -m --fail-under=80
+coverage report -m --fail-under=90
 COVERAGE_EXIT_CODE=$?
 
 if [ $COVERAGE_EXIT_CODE -ne 0 ]; then

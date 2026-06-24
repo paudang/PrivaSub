@@ -93,6 +93,8 @@ class SubtitleOverlay(ctk.CTk):
         
         self._drag_start_x = 0
         self._drag_start_y = 0
+        self._win_start_x = 0
+        self._win_start_y = 0
         
         self._resize_start_x = 0
         self._resize_start_y = 0
@@ -115,15 +117,26 @@ class SubtitleOverlay(ctk.CTk):
     def start_drag(self, event):
         if self.is_locked:
             return
-        self._drag_start_x = event.x
-        self._drag_start_y = event.y
+        self._drag_start_x = event.x_root
+        self._drag_start_y = event.y_root
+        self._win_start_x = self.winfo_x()
+        self._win_start_y = self.winfo_y()
 
     def drag(self, event):
         if self.is_locked:
             return
-        x = self.winfo_x() - self._drag_start_x + event.x
-        y = self.winfo_y() - self._drag_start_y + event.y
-        self.geometry(f"+{x}+{y}")
+        
+        # Calculate new potential position using absolute mouse movement
+        dx = event.x_root - self._drag_start_x
+        dy = event.y_root - self._drag_start_y
+        
+        new_x = self._win_start_x + dx
+        new_y = self._win_start_y + dy
+        
+        # We don't clamp X and Y to 0 or screen_width because it prevents dragging
+        # to secondary monitors (which have negative X or X > screen_width).
+        
+        self.geometry(f"+{new_x}+{new_y}")
 
     def start_resize(self, event):
         if self.is_locked:
@@ -139,8 +152,17 @@ class SubtitleOverlay(ctk.CTk):
         dx = event.x_root - self._resize_start_x
         dy = event.y_root - self._resize_start_y
         
+        # Calculate unconstrained dimensions
         new_width = max(self._start_width + dx, self.min_width)
         new_height = max(self._start_height + dy, self.min_height)
+        
+        # Constrain dimensions so the window itself isn't larger than a standard screen.
+        # We use winfo_screenwidth/height as a sane maximum size.
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        
+        new_width = min(new_width, screen_width)
+        new_height = min(new_height, screen_height)
         
         self.geometry(f"{new_width}x{new_height}")
 

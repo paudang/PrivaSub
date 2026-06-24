@@ -16,13 +16,13 @@ from src.core.ai.translator import OfflineTranslator
 from src.ui.live.overlay import SubtitleOverlay
 from src.ui.batch.window import FileTranscriberWindow
 from src.ui.settings.window import SettingsWindow
-from src.core.config import AppConfig
+from src.core.config import AppConfig, APP_VERSION
 
 class PrivaSubApp:
     def __init__(self):
         self.running = True
         self.is_paused = False
-        self.is_locked = True  # Start locked (click-through) by default as requested
+        self.is_locked = False
         
         # Load user settings
         self.config = AppConfig.load()
@@ -108,7 +108,7 @@ class PrivaSubApp:
         self.tray_icon = pystray.Icon(
             "PrivaSub",
             icon=self.get_tray_icon_image(),
-            title="PrivaSub - Offline Captions",
+            title=f"PrivaSub v{APP_VERSION} - Offline Captions",
             menu=menu
         )
         
@@ -274,10 +274,26 @@ class PrivaSubApp:
 def main():
     # Hide the default console window on Windows when starting (optional but good for release)
     # We keep it visible for now during testing
-    
-    # Tell Windows this is a distinct app so the taskbar uses our custom icon instead of Python's
     import ctypes
+    import sys
+    
     if sys.platform == 'win32':
+        # Prevent multiple instances using a named mutex
+        mutex_name = "Global\\PrivaSub_SingleInstance_Mutex"
+        mutex = ctypes.windll.kernel32.CreateMutexW(None, False, mutex_name)
+        last_error = ctypes.windll.kernel32.GetLastError()
+        
+        # ERROR_ALREADY_EXISTS = 183
+        if last_error == 183:
+            # Tell the user and close this new run
+            import tkinter as tk
+            from tkinter import messagebox
+            root = tk.Tk()
+            root.withdraw()
+            messagebox.showinfo("PrivaSub", "PrivaSub is already running!")
+            return
+            
+        # Tell Windows this is a distinct app so the taskbar uses our custom icon instead of Python's
         try:
             myappid = 'privasub.desktop.app.1'
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)

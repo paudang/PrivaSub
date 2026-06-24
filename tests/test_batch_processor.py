@@ -90,6 +90,27 @@ class TestBatchProcessor(unittest.TestCase):
             
         # VTT should start with WEBVTT
         self.assertTrue(content.startswith("WEBVTT"))
+        
+    def test_missing_file_error(self):
+        transcriber = BatchTranscriber(model_size="tiny.en", device="cpu", compute_type="int8")
+        result = transcriber.process_file("nonexistent.mp4", "en", "srt")
+        self.assertIsNone(result)
+            
+    def test_process_file_with_callbacks(self):
+        # Create dummy callbacks
+        progress_mock = unittest.mock.MagicMock()
+        status_mock = unittest.mock.MagicMock()
+        
+        transcriber = BatchTranscriber(model_size="tiny.en", device="cpu", compute_type="int8")
+        out_path = transcriber.process_file(
+            self.test_audio, 
+            output_format="srt", 
+            output_mode="en",
+            progress_callback=progress_mock
+        )
+        self.assertTrue(os.path.exists(out_path))
+        # Callbacks should have been called at least once
+        self.assertTrue(progress_mock.called)
 
 if __name__ == '__main__':
     unittest.main()

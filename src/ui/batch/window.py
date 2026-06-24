@@ -28,8 +28,9 @@ class FileTranscriberWindow(FileTranscriberBase):
         
         # Configure window properties
         self.title("PrivaSub - Offline File Transcriber")
-        self.geometry("540x520")
-        self.resizable(False, False)
+        self.geometry("480x480")
+        self.minsize(450, 450)
+        self.resizable(True, True)
         
         # Apply dark premium theme
         self.configure(fg_color="#121212")
@@ -59,8 +60,15 @@ class FileTranscriberWindow(FileTranscriberBase):
         self.update_idletasks()
         width = self.winfo_width()
         height = self.winfo_height()
-        x = (self.winfo_screenwidth() // 2) - (width // 2)
-        y = (self.winfo_screenheight() // 2) - (height // 2)
+        
+        if self.parent_app and hasattr(self.parent_app, 'app') and self.parent_app.app:
+            overlay = self.parent_app.app
+            x = overlay.winfo_x() + (overlay.winfo_width() // 2) - (width // 2)
+            y = overlay.winfo_y() + (overlay.winfo_height() // 2) - (height // 2)
+        else:
+            x = (self.winfo_screenwidth() // 2) - (width // 2)
+            y = (self.winfo_screenheight() // 2) - (height // 2)
+            
         self.geometry(f"{width}x{height}+{x}+{y}")
 
     def setup_ui(self):
