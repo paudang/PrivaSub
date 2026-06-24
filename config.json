@@ -1,6 +1,6 @@
 {
-    "max_history_lines": 500,
-    "auto_hide_timeout_s": 15,
-    "opacity": 80,
+    "max_history_lines": 600,
+    "auto_hide_timeout_s": 21,
+    "opacity": 87,
     "target_language": "Vietnamese"
 }

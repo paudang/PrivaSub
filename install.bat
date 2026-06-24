@@ -121,11 +121,21 @@ if %errorlevel% neq 0 (
 )
 
 echo.
+echo [4/4] Creating Desktop Shortcut...
+set "SCRIPT_DIR=%~dp0"
+powershell -Command "$wshell = New-Object -ComObject WScript.Shell; $shortcut = $wshell.CreateShortcut([Environment]::GetFolderPath('Desktop') + '\PrivaSub.lnk'); $shortcut.TargetPath = '%SCRIPT_DIR%run.bat'; $shortcut.WorkingDirectory = '%SCRIPT_DIR%'; $shortcut.IconLocation = '%SCRIPT_DIR%assets\icon.ico'; $shortcut.Description = 'PrivaSub - Offline Captions'; $shortcut.Save()"
+if %errorlevel% neq 0 (
+    echo [WARNING] Failed to create desktop shortcut.
+) else (
+    echo [SUCCESS] Desktop shortcut created!
+)
+
+echo.
 echo ==================================================
 echo Installation completed successfully!
 echo.
-echo You can now start PrivaSub by double-clicking:
-echo   run.bat
+echo You can now start PrivaSub by double-clicking the new PrivaSub icon on your Desktop!
+echo Or by manually running: run.bat
 echo ==================================================
 echo.
 pause

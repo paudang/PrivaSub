@@ -4,7 +4,19 @@ export default defineConfig({
   title: "PrivaSub",
   description: "Offline, Privacy-First Desktop Captions Overlay.",
   base: '/PrivaSub/',
-  head: [['link', { rel: 'icon', href: '/PrivaSub/favicon.png' }]],
+  head: [
+    ['link', { rel: 'icon', href: '/PrivaSub/favicon.png' }],
+    ['meta', { property: 'og:image', content: 'https://paudang.github.io/PrivaSub/favicon.png' }],
+    ['meta', { property: 'og:title', content: 'PrivaSub | Offline Desktop Captions' }],
+    ['meta', { property: 'og:description', content: 'Offline, Privacy-First Desktop Captions Overlay. Translate English to Vietnamese in real-time.' }],
+    ['meta', { property: 'og:site_name', content: 'PrivaSub' }],
+    ['meta', { property: 'og:url', content: 'https://paudang.github.io/PrivaSub/' }],
+    ['meta', { property: 'og:type', content: 'website' }],
+    ['meta', { name: 'twitter:card', content: 'summary' }],
+    ['meta', { name: 'twitter:title', content: 'PrivaSub | Offline Desktop Captions' }],
+    ['meta', { name: 'twitter:description', content: 'Offline, Privacy-First Desktop Captions Overlay.' }],
+    ['meta', { name: 'twitter:image', content: 'https://paudang.github.io/PrivaSub/favicon.png' }]
+  ],
   themeConfig: {
     nav: [
       { text: 'Home', link: '/' },
