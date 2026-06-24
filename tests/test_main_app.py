@@ -41,7 +41,9 @@ class TestMainApp(unittest.TestCase):
         self.assertFalse(app.running)
 
     @patch("src.main.PrivaSubApp")
-    def test_main_function(self, mock_app_class):
+    @patch("ctypes.windll.kernel32.GetLastError")
+    def test_main_function(self, mock_get_last_error, mock_app_class):
+        mock_get_last_error.return_value = 0
         mock_app_instance = MagicMock()
         mock_app_class.return_value = mock_app_instance
         
