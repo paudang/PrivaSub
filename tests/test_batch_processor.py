@@ -4,6 +4,7 @@ import unittest
 import wave
 import struct
 import math
+from unittest.mock import patch
 
 # Add src directory to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
