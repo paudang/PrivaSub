@@ -34,3 +34,20 @@ Running speech-to-text models continuously on CPU consumes significant processin
 When VAD detects active speech, the processed audio buffer is passed to `faster-whisper`:
 *   **Engine:** Powered by `CTranslate2` (a fast C++ inference engine for Transformer models).
 *   **Quantization:** Configured to `int8` on CPU. This reduces the memory usage and execution latency by 4x compared to the standard PyTorch FP32 float execution, making it highly responsive on modern laptop/desktop processors.
+
+---
+
+## 5. Offline Machine Translation
+Once English text is transcribed by the Whisper engine, it is passed to the offline translation module:
+*   **Model:** Powered by an optimized MarianMT neural network (`opus-mt-en-vi`) converted to the `CTranslate2` model format.
+*   **Tokenization:** Handled locally using Hugging Face `tokenizers` and `sentencepiece` (without PyTorch).
+*   **Performance:** Uses `int8` quantization to achieve translation speeds under **100ms** per sentence directly on your CPU.
+*   **Security:** Runs 100% offline, keeping sensitive transcripts private.
+
+---
+
+## 6. Transparent Dual Subtitle Overlay
+Both the English transcript and the Vietnamese translation are pushed to the main thread's GUI:
+*   **Dual-Line Label Layout:** Built with `CustomTkinter` using an optimized always-on-top layout.
+*   **Windows Click-Through:** Uses ctypes Win32 window style attributes (`WS_EX_TRANSPARENT` and `WS_EX_LAYERED`) to lock the window and permit clicks to pass directly through the subtitles, avoiding interaction locks.
+*   **Dynamic Fade-out:** Monitored by a background timer that triggers a smooth alpha-channel opacity transition to completely hide the window after a short duration of silence.

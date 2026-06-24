@@ -17,7 +17,12 @@ Follow these steps to set up and run PrivaSub on your local machine.
 Choose one of the following methods to set up your environment:
 
 ### Method A: Using the Installer (Recommended for Windows)
-Simply double-click the `install.bat` file in the project folder. This will automatically verify your Python installation, initialize the virtual environment (`.venv`), and download all dependencies.
+Simply double-click the `install.bat` file in the project folder. This will automatically:
+1. Verify your local Python installation.
+2. Initialize the Python virtual environment (`.venv`).
+3. Verify if virtual environment DLL loading is allowed on your host (handling cases where Windows Defender Application Control, AppLocker, or strict corporate group policies block running DLLs like PyAV from user workspace directories).
+4. If blocked, the script automatically switches to **Global Python Environment** installation to bypass execution restrictions.
+5. Download and install all required packages (`faster-whisper`, `ctranslate2`, `transformers`, `sentencepiece`, etc.) automatically.
 
 ### Method B: Manual Command Line Setup
 1.  **Clone or download the project folder** to your workspace.
@@ -51,7 +56,7 @@ With your virtual environment activated, run:
 ```bash
 python src/main.py
 ```
-*Note: On your very first run, PrivaSub will download the optimized `tiny.en` Whisper model (~75MB) from Hugging Face. This might take a minute depending on your internet connection.*
+*Note: On your very first run, PrivaSub will download the optimized `tiny.en` Whisper transcription model (~75MB) and the `opus-mt-en-vi-ctranslate2` translation model (~150MB) from Hugging Face. These files are stored locally in the `models/` directory for subsequent offline runs. This might take a couple of minutes depending on your internet connection.*
 
 ---
 
