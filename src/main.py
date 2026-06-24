@@ -20,6 +20,7 @@ class PrivaSubApp:
         self.running = True
         self.is_paused = False
         self.is_locked = True  # Start locked (click-through) by default as requested
+        self.show_translation = True  # Show Vietnamese translation by default
         
         # 1. Initialize components
         print("[Main] Initializing PrivaSub components...")
@@ -65,6 +66,7 @@ class PrivaSubApp:
         menu = pystray.Menu(
             pystray.MenuItem("Toggle Draggable (Unlock)", self.on_toggle_lock, checked=lambda item: not self.is_locked),
             pystray.MenuItem("Pause Listening", self.on_toggle_pause, checked=lambda item: self.is_paused),
+            pystray.MenuItem("Show Translation (Vietnamese)", self.on_toggle_translation, checked=lambda item: self.show_translation),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Show Caption Bar", self.on_show_bar),
             pystray.MenuItem("Exit", self.on_exit)
@@ -80,7 +82,7 @@ class PrivaSubApp:
         # Run pystray in a background thread so it doesn't block the Tkinter main loop
         tray_thread = threading.Thread(target=self.tray_icon.run, daemon=True)
         tray_thread.start()
-
+ 
     def on_toggle_lock(self, icon, item):
         """Callback to switch overlay between Click-Through (locked) and Draggable (unlocked)."""
         self.is_locked = not self.is_locked
@@ -103,6 +105,13 @@ class PrivaSubApp:
             self.capture.resume()
             self.app.after(0, self.app.set_text, "PrivaSub: Resuming...", "", True)
 
+    def on_toggle_translation(self, icon, item):
+        """Toggles the visibility of translation subtitles."""
+        self.show_translation = not self.show_translation
+        print(f"[Main] Show translation toggled: {self.show_translation}")
+        # Update UI layout on main thread
+        self.app.after(0, self.app.set_translation_visible, self.show_translation)
+
     def on_show_bar(self, icon, item):
         """Forcibly shows the caption bar on screen."""
         self.app.after(0, lambda: self.app.deiconify())
@@ -123,8 +132,10 @@ class PrivaSubApp:
                 res = self.transcriber.process_audio(chunk)
                 if res:
                     text, is_final = res
-                    # Translate to Vietnamese offline
-                    vi_text = self.translator.translate(text)
+                    # Translate to Vietnamese offline only if enabled
+                    vi_text = ""
+                    if self.show_translation:
+                        vi_text = self.translator.translate(text)
                     # Push UI update task to Tkinter main thread loop safely
                     self.app.after(0, self.app.set_text, text, vi_text, is_final)
             else:

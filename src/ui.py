@@ -181,6 +181,20 @@ class SubtitleOverlay(ctk.CTk):
             self.after_cancel(self.hide_timer_id)
         self.hide_timer_id = self.after(3000, self.start_fade)
         
+    def set_translation_visible(self, visible):
+        """Toggles the visibility of the Vietnamese translation label and adjusts window height."""
+        if visible:
+            self.win_height = 110
+            self.vi_label.pack(expand=True, fill="x", padx=20, pady=(2, 10))
+        else:
+            self.win_height = 80
+            self.vi_label.pack_forget()
+            
+        # Update geometry preserving current position
+        x_pos = self.winfo_x()
+        y_pos = self.winfo_y()
+        self.geometry(f"{self.win_width}x{self.win_height}+{x_pos}+{y_pos}")
+
     def close(self):
         """Cleans up timers and destroys window."""
         if self.hide_timer_id:
