@@ -2,6 +2,6 @@
     "max_history_lines": 600,
     "auto_hide_timeout_s": 21,
     "opacity": 87,
-    "source_language": "English (Translate Mode)",
-    "target_language": "Vietnamese"
+    "source_language": "English Only",
+    "target_language": "None"
 }

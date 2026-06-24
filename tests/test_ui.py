@@ -165,8 +165,8 @@ class TestAdditionalWindows(unittest.TestCase):
         # Test reset
         win.reset_defaults()
         
-        # Test destroy
-        win.destroy()
+        # Test save and close
+        win.save_and_close()
 
     @patch("src.core.config.AppConfig.load")
     @patch("tkinter.messagebox.showerror")

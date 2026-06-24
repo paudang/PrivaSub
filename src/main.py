@@ -94,7 +94,6 @@ class PrivaSubApp:
         menu = pystray.Menu(
             pystray.MenuItem("Toggle Draggable (Unlock)", self.on_toggle_lock, checked=lambda item: not self.is_locked),
             pystray.MenuItem("Pause Listening", self.on_toggle_pause, checked=lambda item: self.is_paused),
-            pystray.MenuItem("Toggle Translation", self.on_toggle_translation, checked=lambda item: self.target_language != "None" and self.target_language != "None (English Only)"),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Open File Transcriber", self.on_open_transcriber),
             pystray.MenuItem("Settings", self.on_open_settings),
@@ -135,31 +134,6 @@ class PrivaSubApp:
             print("[Main] Resuming...")
             self.capture.resume()
             self.app.after(0, self.app.set_text, "PrivaSub: Resuming...", "", True)
-
-    def on_toggle_translation(self, icon, item):
-        """Toggles the visibility of translation subtitles."""
-        if self.target_language == "None" or self.target_language == "None (English Only)":
-            self.target_language = "Vietnamese"
-            self.source_language = "English (Translate Mode)"
-        else:
-            self.target_language = "None"
-            self.source_language = "English Only"
-            
-        print(f"[Main] Target language toggled: {self.target_language}")
-        
-        # Save to config
-        self.config["source_language"] = self.source_language
-        self.config["target_language"] = self.target_language
-        AppConfig.save(self.config)
-        
-        self.transcriber.set_language("en")
-        
-        if self.target_language != "None":
-            self.translator.set_translation_direction("en", self.target_language)
-        
-        # Update UI layout on main thread
-        show_trans = (self.target_language != "None" and self.target_language != "None (English Only)")
-        self.app.after(0, self.app.set_translation_visible, show_trans)
 
     def on_show_bar(self, icon, item):
         """Forcibly shows the caption bar on screen."""
