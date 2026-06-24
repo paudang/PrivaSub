@@ -24,7 +24,7 @@ class SubtitleOverlay(ctk.CTk):
         
         # Subtitle window size
         self.win_width = int(screen_width * 0.6)
-        self.win_height = 80
+        self.win_height = 110
         
         # Position
         x_pos = int((screen_width - self.win_width) / 2)
@@ -44,8 +44,8 @@ class SubtitleOverlay(ctk.CTk):
         )
         self.main_frame.pack(fill="both", expand=True, padx=2, pady=2)
         
-        # Text Label
-        self.label = ctk.CTkLabel(
+        # English Text Label
+        self.en_label = ctk.CTkLabel(
             self.main_frame,
             text="PrivaSub: Captions will appear here...",
             font=ctk.CTkFont(family="Inter", size=18, weight="normal"),
@@ -53,11 +53,24 @@ class SubtitleOverlay(ctk.CTk):
             wraplength=self.win_width - 40,
             justify="center"
         )
-        self.label.pack(expand=True, fill="both", padx=20, pady=10)
+        self.en_label.pack(expand=True, fill="x", padx=20, pady=(10, 2))
+
+        # Vietnamese Text Label (Sleek iOS Yellow for distinction)
+        self.vi_label = ctk.CTkLabel(
+            self.main_frame,
+            text="Phụ đề dịch sẽ xuất hiện ở đây...",
+            font=ctk.CTkFont(family="Inter", size=18, weight="normal"),
+            text_color="#FFD60A",
+            wraplength=self.win_width - 40,
+            justify="center"
+        )
+        self.vi_label.pack(expand=True, fill="x", padx=20, pady=(2, 10))
         
         # Dragging logic (when not locked)
-        self.label.bind("<ButtonPress-1>", self.start_drag)
-        self.label.bind("<B1-Motion>", self.drag)
+        self.en_label.bind("<ButtonPress-1>", self.start_drag)
+        self.en_label.bind("<B1-Motion>", self.drag)
+        self.vi_label.bind("<ButtonPress-1>", self.start_drag)
+        self.vi_label.bind("<B1-Motion>", self.drag)
         self.main_frame.bind("<ButtonPress-1>", self.start_drag)
         self.main_frame.bind("<B1-Motion>", self.drag)
         
@@ -112,7 +125,7 @@ class SubtitleOverlay(ctk.CTk):
         else:
             print("[UI] Click-through is only supported on Windows.")
 
-    def set_text(self, text, is_final=False):
+    def set_text(self, en_text, vi_text="", is_final=False):
         """Updates subtitle text and manages showing/hiding states."""
         # Cancel current fade animation if active
         self.is_fading = False
@@ -122,7 +135,8 @@ class SubtitleOverlay(ctk.CTk):
         if not self.winfo_viewable():
             self.deiconify()
             
-        self.label.configure(text=text)
+        self.en_label.configure(text=en_text)
+        self.vi_label.configure(text=vi_text)
         
         # Handle auto-hide timers
         if self.hide_timer_id:
@@ -177,13 +191,13 @@ if __name__ == "__main__":
     # Test script for UI layout and drag/lock capabilities
     print("Testing Subtitle Overlay UI. Drag it around. In 4 seconds it will lock/enable click-through.")
     app = SubtitleOverlay()
-    app.set_text("This is a draggable subtitle test chunk.", is_final=False)
+    app.set_text("This is a draggable subtitle test chunk.", "Đây là phần thử nghiệm phụ đề kéo được.", is_final=False)
     
     # After 4 seconds, lock the window and change text
     def lock_test():
         print("Locking window (click-through enabled) & setting final text...")
         app.set_click_through(True)
-        app.set_text("Now I am locked! Try to click through me.", is_final=True)
+        app.set_text("Now I am locked! Try to click through me.", "Bây giờ tôi đã khóa! Hãy thử click xuyên qua tôi.", is_final=True)
         
     app.after(4000, lock_test)
     app.mainloop()

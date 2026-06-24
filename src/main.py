@@ -12,6 +12,7 @@ sys.path.append(os.path.dirname(__file__))
 
 from audio import AudioCapture
 from transcriber import Transcriber
+from translator import OfflineTranslator
 from ui import SubtitleOverlay
 
 class PrivaSubApp:
@@ -26,6 +27,10 @@ class PrivaSubApp:
         
         # Use tiny.en model for quick load and low CPU footprint
         self.transcriber = Transcriber(model_size="tiny.en", device="cpu", compute_type="int8")
+        
+        # Initialize offline translator
+        print("[Main] Loading offline translator...")
+        self.translator = OfflineTranslator(device="cpu", compute_type="int8")
         
         # Initialize UI on main thread
         self.app = SubtitleOverlay()
@@ -83,7 +88,7 @@ class PrivaSubApp:
         # Update text info
         status = "Locked (Click-Through)" if self.is_locked else "Unlocked (Draggable)"
         print(f"[Main] UI status toggled: {status}")
-        self.app.after(0, self.app.set_text, f"Captions Overlay: {status}", True)
+        self.app.after(0, self.app.set_text, f"Captions Overlay: {status}", "", True)
 
     def on_toggle_pause(self, icon, item):
         """Pauses or resumes audio capturing and transcription."""
@@ -92,16 +97,16 @@ class PrivaSubApp:
             print("[Main] Pausing...")
             self.capture.pause()
             self.transcriber.reset_buffer()
-            self.app.after(0, self.app.set_text, "PrivaSub: Paused", True)
+            self.app.after(0, self.app.set_text, "PrivaSub: Paused", "", True)
         else:
             print("[Main] Resuming...")
             self.capture.resume()
-            self.app.after(0, self.app.set_text, "PrivaSub: Resuming...", True)
+            self.app.after(0, self.app.set_text, "PrivaSub: Resuming...", "", True)
 
     def on_show_bar(self, icon, item):
         """Forcibly shows the caption bar on screen."""
         self.app.after(0, lambda: self.app.deiconify())
-        self.app.after(0, self.app.set_text, "PrivaSub active - waiting for audio...", True)
+        self.app.after(0, self.app.set_text, "PrivaSub active - waiting for audio...", "", True)
 
     def audio_processing_loop(self):
         """Background thread loop that pulls audio from the queue and feeds it to Whisper."""
@@ -118,8 +123,10 @@ class PrivaSubApp:
                 res = self.transcriber.process_audio(chunk)
                 if res:
                     text, is_final = res
+                    # Translate to Vietnamese offline
+                    vi_text = self.translator.translate(text)
                     # Push UI update task to Tkinter main thread loop safely
-                    self.app.after(0, self.app.set_text, text, is_final)
+                    self.app.after(0, self.app.set_text, text, vi_text, is_final)
             else:
                 time.sleep(0.05)
 

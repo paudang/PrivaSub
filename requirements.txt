@@ -5,3 +5,5 @@ pystray
 pillow
 numpy
 requests
+transformers
+sentencepiece

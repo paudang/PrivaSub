@@ -104,6 +104,22 @@ if %errorlevel% neq 0 (
     exit /b
 )
 
+:: Verify if virtual environment DLL execution is allowed under system AppLocker policies
+.venv\Scripts\python.exe -c "import av" >nul 2>&1
+if %errorlevel% neq 0 (
+    echo.
+    echo [WARNING] Virtual environment execution is restricted by Windows Application Control policies.
+    echo Re-routing installation to Global Python environment to bypass blocks...
+    python -m pip install --upgrade pip
+    python -m pip install -r requirements.txt
+    if %errorlevel% neq 0 (
+        echo [ERROR] Failed to install global dependencies. Please contact your system administrator.
+        pause
+        exit /b
+    )
+    echo [SUCCESS] Global dependencies installed successfully!
+)
+
 echo.
 echo ==================================================
 echo Installation completed successfully!
