@@ -310,7 +310,10 @@ class TestSystemAudio(unittest.TestCase):
         cap3.stream = mock_stream
         mock_p.open.return_value = mock_stream
         mock_p.open.side_effect = None
-        mock_stream.read.side_effect = fake_read4
+        def fake_read_cap3(*args, **kwargs):
+            cap3.running = False
+            return b"\x00\x00" * 160
+        mock_stream.read.side_effect = fake_read_cap3
         mock_stream.stop_stream.side_effect = Exception("Exit stop error")
         mock_p.terminate.side_effect = Exception("Exit term error")
         cap3._record_loop()
