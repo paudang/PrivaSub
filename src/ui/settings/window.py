@@ -213,3 +213,4 @@ class SettingsWindow(ctk.CTkToplevel):
         
         self.stealth_var.set(DEFAULT_CONFIG["stealth_mode"])
 
+

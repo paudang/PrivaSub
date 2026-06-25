@@ -35,6 +35,7 @@ class TestMainApp(unittest.TestCase):
         app.on_show_bar(None, None)
         app.on_open_transcriber(None, None)
         app.on_open_settings(None, None)
+        app.on_select_audio_device(1, "Speaker Loopback")
         
         # Test new stealth and disguised modes
         app.is_stealth = False

@@ -72,21 +72,30 @@ class Transcriber:
             self.last_text = ""
             return final_text, True
 
+        # Dynamic Volume Normalization for low-volume WebRTC/Phone audio streams
+        # If peak volume is low but above noise floor, apply gentle digital gain
+        peak = np.max(np.abs(self.audio_buffer)) if len(self.audio_buffer) > 0 else 0.0
+        input_buffer = self.audio_buffer
+        if 0.001 < peak < 0.3:
+            gain = min(5.0, 0.3 / peak)
+            input_buffer = (self.audio_buffer * gain).astype(np.float32)
+
         # Perform transcription using faster-whisper's VAD filter
         # We set beam_size=1 for maximum speed/real-time performance
         try:
             segments, info = self.model.transcribe(
-                self.audio_buffer,
+                input_buffer,
                 beam_size=1,
                 temperature=[0.0, 0.2, 0.4, 0.6],
                 initial_prompt="Below is the real-time transcription of a professional English discussion, full of clear vocabulary and corporate terminology.",
                 condition_on_previous_text=True,
                 vad_filter=True,
                 vad_parameters=dict(
-                    min_speech_duration_ms=200,
+                    min_speech_duration_ms=50, # Lowered to 50ms to catch ANY vocal sound
                     max_speech_duration_s=self.max_buffer_seconds,
-                    min_silence_duration_ms=400,
-                    speech_pad_ms=300
+                    min_silence_duration_ms=500,
+                    speech_pad_ms=500,
+                    threshold=0.2 # Lowered threshold to 0.2 (extremely sensitive!)
                 ),
                 language=self.language
             )

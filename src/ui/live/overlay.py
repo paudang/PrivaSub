@@ -273,6 +273,13 @@ class SubtitleOverlay(ctk.CTk):
             self.attributes("-alpha", self.target_alpha)
         print(f"[UI] Disguised Mode set to: {enabled}")
 
+    def get_current_text(self):
+        """Returns the current raw text content of the textbox."""
+        try:
+            return self.textbox.get("1.0", "end-1c").strip()
+        except Exception:
+            return ""
+
     def set_text(self, en_text, vi_text="", is_final=False):
         """Updates subtitle text and manages showing/hiding states."""
         # Cancel current fade animation if active

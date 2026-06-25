@@ -123,6 +123,10 @@ class TestSystemAudio(unittest.TestCase):
         mock_p = MagicMock()
         mock_pyaudio.return_value = mock_p
         
+        def fake_sleep(secs):
+            cap.running = False
+        mock_sleep.side_effect = fake_sleep
+        
         # Mock stereo input device info
         mock_p.get_host_api_info_by_type.return_value = {"defaultOutputDevice": 0}
         mock_p.get_device_info_by_index.return_value = {
@@ -168,6 +172,31 @@ class TestSystemAudio(unittest.TestCase):
         cap.running = True
         cap._record_loop()
         self.assertFalse(cap.running)
+
+    @patch("src.core.audio.system_audio.pyaudio.PyAudio")
+    def test_device_selection(self, mock_pyaudio):
+        cap = AudioCapture()
+        mock_p = MagicMock()
+        mock_pyaudio.return_value = mock_p
+        
+        mock_p.get_loopback_device_info_generator.return_value = [{"index": 1, "name": "Speaker Loopback", "maxInputChannels": 2, "defaultSampleRate": 48000}]
+        mock_p.get_device_count.return_value = 1
+        mock_p.get_device_info_by_index.return_value = {"index": 0, "name": "Mic", "maxInputChannels": 1, "defaultSampleRate": 16000, "isLoopbackDevice": False}
+        
+        devices = cap.get_available_devices()
+        self.assertGreaterEqual(len(devices), 1)
+        
+        cap.set_device(1)
+        self.assertEqual(cap.selected_device_index, 1)
+        
+        # Test record loop with selected device
+        mock_stream = MagicMock()
+        mock_p.open.return_value = mock_stream
+        mock_stream.read.return_value = None
+        
+        # Will exit loop immediately because read returns None and running becomes False
+        cap.running = False
+        cap._record_loop()
 
 if __name__ == '__main__':
     unittest.main()

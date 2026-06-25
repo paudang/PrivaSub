@@ -35,6 +35,9 @@ class PrivaSubApp:
         # 1. Initialize components
         print("[Main] Initializing PrivaSub components...")
         self.capture = AudioCapture(chunk_duration_ms=100)
+        audio_dev_idx = self.config.get("audio_device_index", None)
+        if audio_dev_idx is not None:
+            self.capture.selected_device_index = audio_dev_idx
         
         # Use tiny.en model for optimized English transcription
         self.transcriber = Transcriber(model_size="tiny.en", device="cpu", compute_type="int8", language="en")
@@ -136,9 +139,27 @@ class PrivaSubApp:
 
     def setup_tray(self):
         """Builds the System Tray interface and menu."""
+        audio_menu_items = []
+        devices = self.capture.get_available_devices()
+        
+        def make_callback(dev_index, dev_name):
+            return lambda icon, item: self.on_select_audio_device(dev_index, dev_name)
+            
+        for dev in devices:
+            prefix = "[Loopback] " if dev['is_loopback'] else "[Mic] "
+            label = f"{prefix}{dev['name']}"
+            audio_menu_items.append(pystray.MenuItem(
+                label, 
+                make_callback(dev['index'], dev['name']),
+                checked=lambda item, idx=dev['index']: self.capture.selected_device_index == idx or (self.capture.selected_device_index is None and self.capture.device_index == idx)
+            ))
+            
+        audio_submenu = pystray.Menu(*audio_menu_items) if audio_menu_items else pystray.Menu(pystray.MenuItem("No devices found", lambda icon, item: None))
+
         menu = pystray.Menu(
             pystray.MenuItem("Toggle Draggable (Unlock)", self.on_toggle_lock, checked=lambda item: not self.is_locked),
             pystray.MenuItem("Pause Listening", self.on_toggle_pause, checked=lambda item: self.is_paused),
+            pystray.MenuItem("Audio Source", audio_submenu),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Open File Transcriber", self.on_open_transcriber),
             pystray.MenuItem("Settings", self.on_open_settings),
@@ -157,6 +178,14 @@ class PrivaSubApp:
         # Run pystray in a background thread so it doesn't block the Tkinter main loop
         tray_thread = threading.Thread(target=self.tray_icon.run, daemon=True)
         tray_thread.start()
+
+    def on_select_audio_device(self, dev_index, dev_name):
+        print(f"[Main] Selecting audio device: {dev_name} (Index: {dev_index})")
+        self.capture.set_device(dev_index)
+        self.config["audio_device_index"] = dev_index
+        AppConfig.save(self.config)
+        self.app.after(0, self.app.set_text, f"PrivaSub: Switched audio source to {dev_name}", "", True)
+        # Avoid calling update_menu on Windows pystray to prevent tray icon crash/vanish
  
     def on_toggle_lock(self, icon, item):
         """Callback to switch overlay between Click-Through (locked) and Draggable (unlocked)."""
@@ -262,6 +291,9 @@ class PrivaSubApp:
 
     def audio_processing_loop(self):
         """Background thread loop that pulls audio from the queue and feeds it to Whisper."""
+        audio_stream_active_notified = False
+        import numpy as np
+        
         while self.running:
             if self.is_paused:
                 time.sleep(0.1)
@@ -271,6 +303,12 @@ class PrivaSubApp:
             chunk = self.capture.get_audio_chunk()
             
             if chunk is not None and len(chunk) > 0:
+                # Check if audio stream has active sound energy
+                if not audio_stream_active_notified and np.max(np.abs(chunk)) > 0.001:
+                    audio_stream_active_notified = True
+                    if hasattr(self.app, 'get_current_text') and self.app.get_current_text() == "PrivaSub loaded. Listening to system audio...":
+                        self.app.after(0, self.app.set_text, "PrivaSub: Audio stream active, waiting for speech...", "", False)
+
                 # Transcribe
                 res = self.transcriber.process_audio(chunk)
                 if res:
