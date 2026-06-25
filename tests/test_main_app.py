@@ -36,6 +36,29 @@ class TestMainApp(unittest.TestCase):
         app.on_open_transcriber(None, None)
         app.on_open_settings(None, None)
         
+        # Test new stealth and disguised modes
+        app.is_stealth = False
+        app.on_toggle_stealth(None, None)
+        self.assertTrue(app.is_stealth)
+        
+        app.is_disguised = False
+        app.on_toggle_disguised(None, None)
+        self.assertTrue(app.is_disguised)
+        
+        app.is_discreet_icon = False
+        app.on_toggle_discreet_icon(None, None)
+        self.assertTrue(app.is_discreet_icon)
+        
+        # Test get_tray_icon_image under discreet mode
+        img_discreet = app.get_tray_icon_image()
+        self.assertIsNotNone(img_discreet)
+        
+        # Test panic hotkey
+        app.app.winfo_viewable.return_value = True
+        app.on_panic_hotkey()
+        app.app.winfo_viewable.return_value = False
+        app.on_panic_hotkey()
+        
         # Test exit
         app.on_exit(None, None)
         self.assertFalse(app.running)

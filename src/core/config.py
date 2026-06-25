@@ -5,14 +5,17 @@ import logging
 logger = logging.getLogger("PrivaSub.Config")
 
 CONFIG_FILE = "config.json"
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.2.0"
 
 DEFAULT_CONFIG = {
     "max_history_lines": 500,
     "auto_hide_timeout_s": 15,
     "opacity": 80,
     "source_language": "English Only",
-    "target_language": "None"
+    "target_language": "None",
+    "stealth_mode": False,
+    "disguised_mode": False,
+    "discreet_tray_icon": False
 }
 
 class AppConfig:

@@ -3,5 +3,8 @@
     "auto_hide_timeout_s": 15,
     "opacity": 80,
     "source_language": "English Only",
-    "target_language": "None"
+    "target_language": "None",
+    "stealth_mode": false,
+    "disguised_mode": false,
+    "discreet_tray_icon": false
 }

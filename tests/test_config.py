@@ -62,5 +62,14 @@ class TestAppConfig(unittest.TestCase):
         # Should not raise exception
         AppConfig.save(test_config)
 
+    @patch("src.core.config.os.path.exists")
+    @patch("builtins.open", new_callable=mock_open, read_data='{"stealth_mode": true, "disguised_mode": true, "discreet_tray_icon": true}')
+    def test_load_stealth_config(self, mock_file, mock_exists):
+        mock_exists.return_value = True
+        config = AppConfig.load()
+        self.assertTrue(config["stealth_mode"])
+        self.assertTrue(config["disguised_mode"])
+        self.assertTrue(config["discreet_tray_icon"])
+
 if __name__ == '__main__':
     unittest.main()

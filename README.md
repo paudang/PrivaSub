@@ -15,6 +15,8 @@ Built with privacy at its core, it runs **100% locally on your computer**—requ
 
 *   **Real-Time Multilingual Offline Translation:** Translates English audio on-the-fly into 10 target languages using an optimized offline Meta NLLB-200 model.
 *   **Dual Subtitle Layout:** Displays both the original English speech and the translated target text simultaneously.
+*   **Anonymous Sub (Screen-Share Stealth Mode):** Advanced Win32 display affinity integration makes the subtitle overlay completely invisible to screen-sharing software (Zoom, Google Meet, Teams, OBS). You can see the subtitles, but your meeting participants will see absolutely nothing!
+*   **Zoom-like Text Selection & Omni-Drag Handles:** Easily drag the window using dedicated side grab handles, or freely click inside the box to highlight and copy (`Ctrl + C`) live subtitle text on the fly.
 *   **System Tray Integration:** Runs silently in your taskbar (System Tray), keeping your workspace clutter-free.
 *   **VAD-Powered Low CPU Usage:** Utilizes *Silero Voice Activity Detection (VAD)*. The transcription engine remains idle (consuming ~0% CPU) during silence or music, triggering only when speech is detected.
 *   **Transparent Overlay:** A sleek, borderless, semi-transparent dark subtitle bar that floats on top of all windows.
@@ -99,6 +101,14 @@ To execute the entire unit test suite and verify that all local modules (audio e
 ```bash
 python run_tests.py
 ```
+
+### Viewing Documentation Locally (VitePress)
+
+PrivaSub includes a fully interactive, beautiful local documentation portal built with VitePress. You can easily spin up the documentation server locally using `npx` (requires Node.js):
+```bash
+npx vitepress dev docs
+```
+Once started, open `http://localhost:5173` in your web browser to explore detailed architecture breakdowns, user guides, configuration specs, and feature explanations.
 
 > [!NOTE]
 > On your first run, the app will automatically download the optimized `tiny` Whisper multilingual transcription model (~75MB) and the Meta `nllb-200-distilled-600M-ct2-int8` translation model (~600MB) from Hugging Face and cache them locally. Please allow a few minutes for the models to load.

@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-06-25
+
+### Added
+- **Anonymous Sub (Screen-Share Invisible Stealth Mode):** Integrated advanced Win32 API display affinity (`WDA_EXCLUDEFROMCAPTURE` / `GetAncestor(GA_ROOT)`) to make the subtitle overlay completely invisible to screen-sharing applications (Zoom, Google Meet, Teams, OBS). Includes double-check injection to guarantee fail-safe invisibility.
+- **Dedicated Drag Handles:** Added elegant left and right grab handles (`ne`, `e`, `nw`, `w`) displaying the standard hand cursor (`cursor="hand2"`) when hovered, making window movement highly intuitive while preserving a clean layout.
+
+### Changed
+- **Zoom-like Text Selection & Copy UX:** Completely decoupled window dragging from the internal text box. Users can now freely click, highlight (bôi đen), and copy (`Ctrl + C`) live subtitle transcripts exactly like Zoom's native caption box.
+- **Clean Settings GUI:** Simplified privacy settings into a unified "Anonymous Sub" section with a clean toggle switch.
+- **Unit Test State Isolation:** Fully isolated unit test suites from local `config.json` state leakage, achieving pristine 62/62 test passes and reaching an elite **92% total test coverage**.
+
 ## [1.1.0] - 2026-06-24
 
 ### Added

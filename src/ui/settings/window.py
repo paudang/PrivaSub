@@ -12,8 +12,8 @@ class SettingsWindow(ctk.CTkToplevel):
         
         # Configure window properties
         self.title("PrivaSub - Settings")
-        self.geometry("420x650")
-        self.minsize(400, 600)
+        self.geometry("420x700")
+        self.minsize(400, 650)
         self.resizable(True, True)
         self.configure(fg_color="#121212")
         
@@ -119,6 +119,19 @@ class SettingsWindow(ctk.CTkToplevel):
         # Initial check for enabled/disabled state
         self.on_source_change(curr_source)
 
+        # 6. Anonymous Sub
+        self._create_label(self.main_frame, "Anonymous Sub", 10)
+        
+        self.stealth_var = ctk.BooleanVar(value=self.config_data.get("stealth_mode", False))
+        self.stealth_switch = ctk.CTkSwitch(
+            self.main_frame,
+            text="Hide Subtitles during Screen Share",
+            variable=self.stealth_var,
+            font=ctk.CTkFont(family="Inter", size=13),
+            text_color="#FFFFFF",
+            progress_color="#0A84FF"
+        )
+        self.stealth_switch.grid(row=11, column=0, columnspan=2, sticky="w", padx=20, pady=(5, 20))
 
         # Save Button
         self.save_btn = ctk.CTkButton(
@@ -172,7 +185,10 @@ class SettingsWindow(ctk.CTkToplevel):
             "auto_hide_timeout_s": int(self.timeout_slider.get()),
             "opacity": int(self.opacity_slider.get()),
             "source_language": self.source_var.get(),
-            "target_language": self.target_var.get()
+            "target_language": self.target_var.get(),
+            "stealth_mode": self.stealth_var.get(),
+            "disguised_mode": self.config_data.get("disguised_mode", False),
+            "discreet_tray_icon": self.config_data.get("discreet_tray_icon", False)
         }
         AppConfig.save(new_config)
         
@@ -194,4 +210,6 @@ class SettingsWindow(ctk.CTkToplevel):
         
         self.source_var.set(DEFAULT_CONFIG["source_language"])
         self.on_source_change(DEFAULT_CONFIG["source_language"])
+        
+        self.stealth_var.set(DEFAULT_CONFIG["stealth_mode"])
 
