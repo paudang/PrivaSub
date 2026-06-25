@@ -4,7 +4,7 @@ layout: home
 hero:
   name: PrivaSub
   text: Offline Captions Overlay
-  tagline: Privacy-first, real-time desktop audio transcription running 100% locally.
+  tagline: Privacy-first, real-time multilingual desktop captions running 100% locally with screen-share stealth mode.
   actions:
     - theme: brand
       text: Get Started
@@ -14,16 +14,16 @@ hero:
       link: https://github.com/paudang/PrivaSub
 
 features:
+  - title: Anonymous Sub (Stealth Mode)
+    details: Advanced Win32 display affinity makes the subtitle bar completely invisible to screen sharing (Zoom, Meet, Teams, OBS). You see the captions, but others see absolutely nothing!
+  - title: Real-Time Multilingual AI
+    details: Live transcription and offline translation into 10 major world languages using optimized Meta NLLB-200 and faster-whisper with INT8 quantization.
+  - title: Zoom-like Selection & Click-Through
+    details: Freely click inside the overlay to highlight and copy (Ctrl+C) live text, drag via dedicated side handles, or lock the window to let clicks pass right through to apps beneath.
   - title: 100% Offline & Private
-    details: Zero cloud dependencies, zero external API calls. Your audio feeds and conversations never leave your computer.
-  - title: System Audio Capture
-    details: Captures internal speaker output (Zoom, Teams, Youtube, VLC) on Windows using WASAPI Loopback.
-  - title: Click-Through Overlay
-    details: Elegant borderless transparent overlay that sits on top of all apps and allows mouse clicks to pass right through.
+    details: Zero cloud dependencies, zero API keys, and absolutely no internet required. Your audio streams and private meetings never leave your computer.
   - title: Low CPU Footprint (VAD)
-    details: Integrates Silero Voice Activity Detection to keep the system idle (consuming ~0% CPU) when there is no speech.
+    details: Integrates Silero Voice Activity Detection (VAD) to keep the transcription engine completely idle (consuming ~0% CPU) during silence or background music.
   - title: Offline Batch Transcriber
-    details: Transcribe and translate existing video or audio files via a built-in UI, exporting directly to .srt or .vtt formats.
-  - title: Fully Customizable UI
-    details: Resize the subtitle overlay, drag it seamlessly across multiple monitors, and adjust opacity, timeouts, and languages on the fly.
+    details: Drag and drop local video or audio files into a dedicated dashboard to generate standard subtitles (.srt or .vtt) in English, target language, or dual mode.
 ---

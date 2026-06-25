@@ -28,6 +28,9 @@ class PrivaSubApp:
         self.config = AppConfig.load()
         self.source_language = self.config.get("source_language", "English Only")
         self.target_language = self.config.get("target_language", "None")
+        self.is_stealth = self.config.get("stealth_mode", False)
+        self.is_disguised = self.config.get("disguised_mode", False)
+        self.is_discreet_icon = self.config.get("discreet_tray_icon", False)
         
         # 1. Initialize components
         print("[Main] Initializing PrivaSub components...")
@@ -43,6 +46,9 @@ class PrivaSubApp:
         # Initialize UI on main thread
         self.app = SubtitleOverlay()
         self.app.set_click_through(self.is_locked)
+        self.app.set_stealth_mode(self.is_stealth)
+        self.app.after(100, lambda: self.app.set_stealth_mode(self.is_stealth))
+        self.app.set_disguised_mode(self.is_disguised)
         self.app.set_text("PrivaSub loaded. Listening to system audio...")
         self.transcriber_win = None
         self.settings_win = None
@@ -68,12 +74,51 @@ class PrivaSubApp:
         self.process_thread = threading.Thread(target=self.audio_processing_loop, daemon=True)
         self.process_thread.start()
         
+        self.hotkey_thread = threading.Thread(target=self.hotkey_listener_loop, daemon=True)
+        self.hotkey_thread.start()
+        
         # Start capturing audio
         self.capture.start()
         print("[Main] Ready! App minimized to System Tray.")
 
+    def hotkey_listener_loop(self):
+        """Background loop to check for Panic Hotkey (Ctrl+Shift+Alt+P) on Windows."""
+        if sys.platform != 'win32':
+            return
+        import ctypes
+        VK_CONTROL = 0x11
+        VK_SHIFT = 0x10
+        VK_MENU = 0x12 # Alt
+        VK_P = 0x50
+        
+        while self.running:
+            time.sleep(0.05)
+            # Check if Ctrl, Shift, Alt, P are all pressed
+            if (ctypes.windll.user32.GetAsyncKeyState(VK_CONTROL) & 0x8000 and 
+                ctypes.windll.user32.GetAsyncKeyState(VK_SHIFT) & 0x8000 and 
+                ctypes.windll.user32.GetAsyncKeyState(VK_MENU) & 0x8000 and 
+                ctypes.windll.user32.GetAsyncKeyState(VK_P) & 0x8000):
+                
+                print("[Main] Panic Hotkey (Ctrl+Shift+Alt+P) detected! Toggling window visibility.")
+                self.app.after(0, self.on_panic_hotkey)
+                time.sleep(1.0) # Debounce delay
+
+    def on_panic_hotkey(self):
+        if self.app.winfo_viewable():
+            self.app.withdraw()
+        else:
+            self.app.deiconify()
+
     def get_tray_icon_image(self):
         """Loads custom icon or falls back to programmatic generation."""
+        if getattr(self, 'is_discreet_icon', False):
+            # Discreet mode: create a generic dark icon with a subtle green dot
+            image = Image.new('RGBA', (64, 64), color=(0, 0, 0, 0))
+            dc = ImageDraw.Draw(image)
+            dc.ellipse([16, 16, 48, 48], fill="#2C2C2E")
+            dc.ellipse([28, 28, 36, 36], fill="#30D158")
+            return image
+            
         icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "icon.png")
         if os.path.exists(icon_path):
             try:
@@ -121,6 +166,27 @@ class PrivaSubApp:
         status = "Locked (Click-Through)" if self.is_locked else "Unlocked (Draggable)"
         print(f"[Main] UI status toggled: {status}")
         self.app.after(0, self.app.set_text, f"Captions Overlay: {status}", "", True)
+
+    def on_toggle_stealth(self, icon, item):
+        self.is_stealth = not self.is_stealth
+        self.app.after(0, self.app.set_stealth_mode, self.is_stealth)
+        status = "Enabled (Invisible to Share Screen)" if self.is_stealth else "Disabled"
+        print(f"[Main] Stealth Mode toggled: {status}")
+        self.app.after(0, self.app.set_text, f"Stealth Mode: {status}", "", True)
+
+    def on_toggle_disguised(self, icon, item):
+        self.is_disguised = not self.is_disguised
+        self.app.after(0, self.app.set_disguised_mode, self.is_disguised)
+        status = "Enabled (Disguised as Notepad)" if self.is_disguised else "Disabled"
+        print(f"[Main] Disguised Mode toggled: {status}")
+        self.app.after(0, self.app.set_text, f"Disguised Mode: {status}", "", True)
+
+    def on_toggle_discreet_icon(self, icon, item):
+        self.is_discreet_icon = not self.is_discreet_icon
+        if self.tray_icon:
+            self.tray_icon.icon = self.get_tray_icon_image()
+            self.tray_icon.title = "Realtek Audio Monitor" if self.is_discreet_icon else f"PrivaSub v{APP_VERSION} - Offline Captions"
+        print(f"[Main] Discreet Tray Icon Mode: {self.is_discreet_icon}")
 
     def on_toggle_pause(self, icon, item):
         """Pauses or resumes audio capturing and transcription."""
@@ -174,6 +240,9 @@ class PrivaSubApp:
             self.config = new_config
             self.source_language = new_config.get("source_language", "English (Translate Mode)")
             self.target_language = new_config.get("target_language", "Vietnamese")
+            self.is_stealth = new_config.get("stealth_mode", False)
+            self.is_disguised = new_config.get("disguised_mode", False)
+            self.is_discreet_icon = new_config.get("discreet_tray_icon", False)
             
             self.transcriber.set_language("en")
             
@@ -181,6 +250,13 @@ class PrivaSubApp:
                 self.translator.set_translation_direction("en", self.target_language)
                 
             self.app.apply_config(new_config)
+            self.app.set_stealth_mode(self.is_stealth)
+            self.app.after(100, lambda: self.app.set_stealth_mode(self.is_stealth))
+            self.app.set_disguised_mode(self.is_disguised)
+            
+            if self.tray_icon:
+                self.tray_icon.icon = self.get_tray_icon_image()
+                self.tray_icon.title = "Realtek Audio Monitor" if self.is_discreet_icon else f"PrivaSub v{APP_VERSION} - Offline Captions"
             
         self.settings_win = SettingsWindow(parent_app=self, on_save_callback=on_settings_saved)
 

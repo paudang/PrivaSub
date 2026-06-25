@@ -111,6 +111,18 @@ class TestSubtitleOverlay(unittest.TestCase):
         self.app.set_click_through(False)
         self.assertFalse(self.app.is_locked)
 
+    def test_stealth_mode(self):
+        self.app.set_stealth_mode(True)
+        self.assertTrue(self.app.is_stealth)
+        self.app.set_stealth_mode(False)
+        self.assertFalse(self.app.is_stealth)
+
+    def test_disguised_mode(self):
+        self.app.set_disguised_mode(True)
+        self.assertTrue(self.app.is_disguised)
+        self.app.set_disguised_mode(False)
+        self.assertFalse(self.app.is_disguised)
+
     def test_apply_config(self):
         self.app.deiconify() # Ensure it's considered visible for alpha update
         new_config = {"opacity": 50, "auto_hide_timeout_s": 5, "max_history_lines": 100}
@@ -162,8 +174,13 @@ class TestAdditionalWindows(unittest.TestCase):
         win.target_var.set("Japanese")
         self.assertEqual(win.target_var.get(), "Japanese")
         
+        # Test privacy switches
+        win.stealth_var.set(True)
+        self.assertTrue(win.stealth_var.get())
+        
         # Test reset
         win.reset_defaults()
+        self.assertFalse(win.stealth_var.get())
         
         # Test save and close
         win.save_and_close()

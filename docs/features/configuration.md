@@ -66,6 +66,14 @@ To keep your screen clean, the subtitle overlay automatically manages its own vi
 
 ---
 
+## Anonymous Sub (Settings UI)
+
+You can permanently configure your privacy preferences directly from the **Application Settings** window (right-click the System Tray icon and select **Settings**):
+*   **Hide Subtitles during Screen Share:** Toggle on to make the subtitle window entirely invisible to screen sharing applications like Zoom, Google Meet, Microsoft Teams, and OBS. You will see the subtitles clearly on your monitor, but anyone viewing your shared screen will see nothing.
+*   **Save & Apply / Reset:** Click **Save & Apply** to persist these settings across restarts, or click **Reset to Defaults** to restore standard behavior.
+
+---
+
 ## Offline File Transcriber
 
 PrivaSub allows you to transcribe and translate local video and audio files completely offline:

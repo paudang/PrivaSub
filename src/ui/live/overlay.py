@@ -17,6 +17,8 @@ class SubtitleOverlay(ctk.CTk):
         self.auto_hide_timeout_ms = self.config.get("auto_hide_timeout_s", 15) * 1000
         
         self.is_locked = False
+        self.is_stealth = False
+        self.is_disguised = False
         self.hide_timer_id = None
         self.is_fading = False
         self.fade_steps = 15
@@ -76,10 +78,30 @@ class SubtitleOverlay(ctk.CTk):
         self.textbox.tag_config("vi", foreground="#FFD60A")
 
         # Dragging logic (when not locked)
-        # We only bind to the main_frame (the 10px border around the text) so that
-        # the user can click and drag inside the textbox to select text or touch-scroll.
+        self.main_frame.configure(cursor="hand2")
         self.main_frame.bind("<ButtonPress-1>", self.start_drag)
         self.main_frame.bind("<B1-Motion>", self.drag)
+        
+        # Dedicated Drag Handles on the Right and Left Sides
+        self.drag_handle_tr = ctk.CTkFrame(self.main_frame, width=20, height=20, fg_color="transparent", cursor="hand2")
+        self.drag_handle_tr.place(relx=1.0, rely=0.0, anchor="ne")
+        self.drag_handle_tr.bind("<ButtonPress-1>", self.start_drag)
+        self.drag_handle_tr.bind("<B1-Motion>", self.drag)
+        
+        self.drag_handle_mr = ctk.CTkFrame(self.main_frame, width=20, height=40, fg_color="transparent", cursor="hand2")
+        self.drag_handle_mr.place(relx=1.0, rely=0.5, anchor="e")
+        self.drag_handle_mr.bind("<ButtonPress-1>", self.start_drag)
+        self.drag_handle_mr.bind("<B1-Motion>", self.drag)
+        
+        self.drag_handle_tl = ctk.CTkFrame(self.main_frame, width=20, height=20, fg_color="transparent", cursor="hand2")
+        self.drag_handle_tl.place(relx=0.0, rely=0.0, anchor="nw")
+        self.drag_handle_tl.bind("<ButtonPress-1>", self.start_drag)
+        self.drag_handle_tl.bind("<B1-Motion>", self.drag)
+        
+        self.drag_handle_ml = ctk.CTkFrame(self.main_frame, width=20, height=40, fg_color="transparent", cursor="hand2")
+        self.drag_handle_ml.place(relx=0.0, rely=0.5, anchor="w")
+        self.drag_handle_ml.bind("<ButtonPress-1>", self.start_drag)
+        self.drag_handle_ml.bind("<B1-Motion>", self.drag)
         
         # Resize Handle (Bottom Right)
         self.resize_handle = ctk.CTkFrame(self.main_frame, width=15, height=15, fg_color="transparent", cursor="size_nw_se")
@@ -187,12 +209,20 @@ class SubtitleOverlay(ctk.CTk):
                     # Also update UI border to show it's locked (minimalistic)
                     self.main_frame.configure(border_color="#1C1C1E")
                     self.resize_handle.place_forget()
+                    self.drag_handle_tr.place_forget()
+                    self.drag_handle_mr.place_forget()
+                    self.drag_handle_tl.place_forget()
+                    self.drag_handle_ml.place_forget()
                 else:
                     # Remove transparent style
                     new_style = style & ~WS_EX_TRANSPARENT
                     # Highlight border to show it's draggable
                     self.main_frame.configure(border_color="#3A3A3C")
                     self.resize_handle.place(relx=1.0, rely=1.0, anchor="se")
+                    self.drag_handle_tr.place(relx=1.0, rely=0.0, anchor="ne")
+                    self.drag_handle_mr.place(relx=1.0, rely=0.5, anchor="e")
+                    self.drag_handle_tl.place(relx=0.0, rely=0.0, anchor="nw")
+                    self.drag_handle_ml.place(relx=0.0, rely=0.5, anchor="w")
                     
                 ctypes.windll.user32.SetWindowLongW(hwnd, GWL_EXSTYLE, new_style)
             except Exception as e:
@@ -200,13 +230,57 @@ class SubtitleOverlay(ctk.CTk):
         else:
             print("[UI] Click-through is only supported on Windows.")
 
+    def set_stealth_mode(self, enabled):
+        """Toggles WDA_EXCLUDEFROMCAPTURE (0x00000011) to hide window from screen capture/screen sharing."""
+        self.is_stealth = enabled
+        if sys.platform == "win32":
+            try:
+                hwnd = ctypes.windll.user32.GetParent(self.winfo_id())
+                # GA_ROOT = 2: Retrieves the root window by walking the chain of parent windows
+                root_hwnd = ctypes.windll.user32.GetAncestor(self.winfo_id(), 2) or hwnd
+                WDA_NONE = 0x00000000
+                WDA_EXCLUDEFROMCAPTURE = 0x00000011
+                affinity = WDA_EXCLUDEFROMCAPTURE if enabled else WDA_NONE
+                success = ctypes.windll.user32.SetWindowDisplayAffinity(root_hwnd, affinity)
+                if not success:
+                    # Retry with direct hwnd if GetAncestor handle differed
+                    ctypes.windll.user32.SetWindowDisplayAffinity(hwnd, affinity)
+                print(f"[UI] Stealth Mode set to: {enabled}")
+            except Exception as e:
+                print(f"[UI] Error setting stealth mode: {e}")
+        else:
+            print("[UI] Stealth mode is only supported on Windows.")
+
+    def set_disguised_mode(self, enabled):
+        """Toggles Disguised Mini Box mode (looks like plain Notepad) to avoid suspicion."""
+        self.is_disguised = enabled
+        if enabled:
+            self.overrideredirect(False)
+            self.title("Untitled - Notepad")
+            self.configure(fg_color="#FFFFFF")
+            self.main_frame.configure(fg_color="#FFFFFF", border_color="#CCCCCC")
+            self.textbox.configure(fg_color="#FFFFFF", text_color="#000000")
+            self.textbox.tag_config("en", foreground="#000000")
+            self.textbox.tag_config("vi", foreground="#333333")
+            self.attributes("-alpha", 1.0)
+        else:
+            self.overrideredirect(True)
+            self.configure(fg_color="#121212")
+            self.main_frame.configure(fg_color="#1C1C1E", border_color="#2C2C2E")
+            self.textbox.configure(fg_color="transparent", text_color="#FFFFFF")
+            self.textbox.tag_config("en", foreground="#FFFFFF")
+            self.textbox.tag_config("vi", foreground="#FFD60A")
+            self.attributes("-alpha", self.target_alpha)
+        print(f"[UI] Disguised Mode set to: {enabled}")
+
     def set_text(self, en_text, vi_text="", is_final=False):
         """Updates subtitle text and manages showing/hiding states."""
         # Cancel current fade animation if active
         self.is_fading = False
         
         # Restore full target transparency and display window
-        self.attributes("-alpha", self.target_alpha)
+        alpha_val = 1.0 if self.is_disguised else self.target_alpha
+        self.attributes("-alpha", alpha_val)
         if not self.winfo_viewable():
             self.deiconify()
             
@@ -302,7 +376,8 @@ class SubtitleOverlay(ctk.CTk):
         
         # Apply opacity immediately if visible
         if self.winfo_viewable() and not self.is_fading:
-            self.attributes("-alpha", self.target_alpha)
+            alpha_val = 1.0 if self.is_disguised else self.target_alpha
+            self.attributes("-alpha", alpha_val)
             
         # Apply translation height update
         curr_target = self.config.get("target_language", "Vietnamese")

@@ -23,7 +23,7 @@ export default defineConfig({
       { text: 'Guide', link: '/guide/introduction' },
       { text: 'Roadmap', link: 'https://trello.com/b/dP5oqzYl/privasub' },
       { text: 'Changelog', link: 'https://github.com/paudang/PrivaSub/blob/main/changelog.md' },
-      { text: 'v1.0.0', link: 'https://github.com/paudang/PrivaSub/releases' }
+      { text: 'v1.2.0', link: 'https://github.com/paudang/PrivaSub/releases' }
     ],
 
     editLink: {
@@ -34,6 +34,7 @@ export default defineConfig({
     sidebar: [
       {
         text: 'Getting Started',
+        collapsed: false,
         items: [
           { text: 'Introduction', link: '/guide/introduction' },
           { text: 'Quick Start', link: '/guide/getting-started' },
@@ -44,13 +45,23 @@ export default defineConfig({
       },
       {
         text: 'Features',
+        collapsed: false,
         items: [
-          { text: 'User Interface', link: '/features/ui' },
+          {
+            text: 'User Interface',
+            collapsed: false,
+            items: [
+              { text: 'The Subtitle Overlay (Popup Sub)', link: '/features/ui-overlay' },
+              { text: 'Additional Dashboards', link: '/features/ui-dashboards' },
+              { text: 'Anonymous Sub & Privacy Features', link: '/features/ui-privacy' }
+            ]
+          },
           { text: 'Configuration', link: '/features/configuration' },
         ]
       },
       {
         text: 'Architecture',
+        collapsed: false,
         items: [
           { text: 'System Architecture', link: '/architecture/system-architecture' },
         ]
