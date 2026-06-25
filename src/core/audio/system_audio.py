@@ -28,6 +28,8 @@ class AudioCapture:
         self.device_name = "Default"
         self.device_rate = 16000
         self.device_channels = 1
+        self.selected_device_index = None
+        self.device_switch_requested = False
         
     def find_wasapi_loopback_device(self):
         """Finds the default WASAPI loopback device for Windows."""
@@ -73,58 +75,137 @@ class AudioCapture:
         return np.interp(x_target, x_orig, audio_data).astype(np.float32)
 
     def _record_loop(self):
-        self.p = pyaudio.PyAudio()
-        
-        # Determine device settings
-        loopback_device = self.find_wasapi_loopback_device()
-        
-        if loopback_device:
-            self.device_index = loopback_device["index"]
-            self.device_name = loopback_device["name"]
-            self.device_rate = int(loopback_device["defaultSampleRate"])
-            self.device_channels = loopback_device["maxInputChannels"]
-            print(f"[Audio] Using WASAPI Loopback device: {self.device_name} (Rate: {self.device_rate}, Channels: {self.device_channels})")
-        else:
-            # Fallback to default input (e.g. microphone or virtual audio cable)
-            try:
-                default_device = self.p.get_default_input_device_info()
-                self.device_index = default_device["index"]
-                self.device_name = default_device["name"]
-                self.device_rate = int(default_device["defaultSampleRate"])
-                self.device_channels = default_device["maxInputChannels"]
-                print(f"[Audio] Fallback to default input device: {self.device_name} (Rate: {self.device_rate}, Channels: {self.device_channels})")
-            except IOError:
-                print("[Audio] Error: No input or loopback audio devices found.")
-                self.running = False
-                self.p.terminate()
-                return
-
-        # Calculate chunk size (frames per buffer) based on native device sample rate
-        chunk_size = int(self.device_rate * (self.chunk_duration_ms / 1000.0))
-        
-        try:
-            self.stream = self.p.open(
-                format=pyaudio.paInt16,
-                channels=self.device_channels,
-                rate=self.device_rate,
-                input=True,
-                input_device_index=self.device_index,
-                frames_per_buffer=chunk_size
-            )
-        except Exception as e:
-            print(f"[Audio] Error opening stream: {e}")
-            self.running = False
-            self.p.terminate()
-            return
-            
-        print("[Audio] Recording started.")
-        
         while self.running:
             if self.paused:
                 time.sleep(0.1)
                 continue
                 
+            if getattr(self, 'device_switch_requested', False):
+                print("[Audio] Processing requested device switch on audio thread...")
+                self.device_switch_requested = False
+                if self.stream:
+                    try:
+                        self.stream.stop_stream()
+                        self.stream.close()
+                    except:
+                        pass
+                if self.p:
+                    try:
+                        self.p.terminate()
+                    except:
+                        pass
+                self.p = None
+                self.stream = None
+                time.sleep(0.2)
+                continue
+                
+            if self.p is None:
+                self.p = pyaudio.PyAudio()
+                
+                # Determine device settings
+                is_loopback_mode = False
+                if self.selected_device_index is not None:
+                    try:
+                        # First check if the selected device index matches any loopback device
+                        loopback_match = None
+                        if HAS_WPATCH:
+                            for loopback in self.p.get_loopback_device_info_generator():
+                                if loopback["index"] == self.selected_device_index:
+                                    loopback_match = loopback
+                                    break
+                        
+                        if loopback_match:
+                            self.device_index = loopback_match["index"]
+                            self.device_name = loopback_match["name"]
+                            self.device_rate = int(loopback_match["defaultSampleRate"])
+                            self.device_channels = loopback_match["maxInputChannels"]
+                            is_loopback_mode = True
+                            print(f"[Audio] Using selected WASAPI Loopback device: {self.device_name} (Rate: {self.device_rate}, Channels: {self.device_channels})")
+                        else:
+                            # Standard input device (e.g. microphone)
+                            dev_info = self.p.get_device_info_by_index(self.selected_device_index)
+                            self.device_index = dev_info["index"]
+                            self.device_name = dev_info["name"]
+                            self.device_rate = int(dev_info["defaultSampleRate"])
+                            self.device_channels = dev_info["maxInputChannels"]
+                            if self.device_channels == 0:
+                                # Fallback to 1 channel or 2 channels if maxInputChannels is 0 but user forced it
+                                self.device_channels = dev_info.get("maxOutputChannels", 2)
+                                if self.device_channels == 0:
+                                    self.device_channels = 1
+                            print(f"[Audio] Using selected input device: {self.device_name} (Rate: {self.device_rate}, Channels: {self.device_channels})")
+                    except Exception as e:
+                        print(f"[Audio] Failed to use selected device {self.selected_device_index}: {e}")
+                        self.selected_device_index = None
+                
+                if self.selected_device_index is None:
+                    loopback_device = self.find_wasapi_loopback_device()
+                    
+                    if loopback_device:
+                        self.device_index = loopback_device["index"]
+                        self.device_name = loopback_device["name"]
+                        self.device_rate = int(loopback_device["defaultSampleRate"])
+                        self.device_channels = loopback_device["maxInputChannels"]
+                        is_loopback_mode = True
+                        print(f"[Audio] Using default WASAPI Loopback device: {self.device_name} (Rate: {self.device_rate}, Channels: {self.device_channels})")
+                    else:
+                        # Fallback to default input (e.g. microphone or virtual audio cable)
+                        try:
+                            default_device = self.p.get_default_input_device_info()
+                            self.device_index = default_device["index"]
+                            self.device_name = default_device["name"]
+                            self.device_rate = int(default_device["defaultSampleRate"])
+                            self.device_channels = default_device["maxInputChannels"]
+                            if self.device_channels == 0:
+                                self.device_channels = 1
+                            print(f"[Audio] Fallback to default input device: {self.device_name} (Rate: {self.device_rate}, Channels: {self.device_channels})")
+                        except IOError:
+                            print("[Audio] Error: No input or loopback audio devices found.")
+                            self.running = False
+                            self.p.terminate()
+                            self.p = None
+                            return
+
+                # Calculate chunk size (frames per buffer) based on native device sample rate
+                chunk_size = int(self.device_rate * (self.chunk_duration_ms / 1000.0))
+                
+                try:
+                    open_kwargs = {
+                        "format": pyaudio.paInt16,
+                        "channels": self.device_channels,
+                        "rate": self.device_rate,
+                        "input": True,
+                        "input_device_index": self.device_index,
+                        "frames_per_buffer": chunk_size
+                    }
+                    if is_loopback_mode and HAS_WPATCH:
+                        open_kwargs["as_loopback"] = True
+                        
+                    self.stream = self.p.open(**open_kwargs)
+                    print("[Audio] Recording started successfully.")
+                except Exception as e:
+                    print(f"[Audio] Error opening stream (trying fallback parameters): {e}")
+                    # Try fallback without as_loopback or with 1 channel if it failed
+                    try:
+                        self.stream = self.p.open(
+                            format=pyaudio.paInt16,
+                            channels=1,
+                            rate=self.device_rate,
+                            input=True,
+                            input_device_index=self.device_index,
+                            frames_per_buffer=chunk_size
+                        )
+                        print("[Audio] Recording started with fallback 1-channel settings.")
+                    except Exception as e2:
+                        print(f"[Audio] Fatal error opening stream: {e2}")
+                        self.p.terminate()
+                        self.p = None
+                        time.sleep(1.0)
+                        continue
+            
             try:
+                # Calculate chunk size dynamically in case it wasn't set in this scope
+                chunk_size = int(self.device_rate * (self.chunk_duration_ms / 1000.0))
                 # Read raw bytes from the stream
                 raw_data = self.stream.read(chunk_size, exception_on_overflow=False)
                 if not raw_data:
@@ -149,16 +230,33 @@ class AudioCapture:
                 self.audio_queue.put(audio_resampled)
                 
             except Exception as e:
-                print(f"[Audio] Stream read error: {e}")
-                time.sleep(0.1)
+                print(f"[Audio] Stream read error (device reset/reconnected): {e}")
+                # Close broken stream and reset PyAudio to trigger auto-reinitialization on next loop
+                try:
+                    self.stream.stop_stream()
+                    self.stream.close()
+                except:
+                    pass
+                try:
+                    self.p.terminate()
+                except:
+                    pass
+                self.p = None
+                self.stream = None
+                time.sleep(0.5)
                 
-        # Clean up
-        try:
-            self.stream.stop_stream()
-            self.stream.close()
-        except:
-            pass
-        self.p.terminate()
+        # Clean up on exit
+        if self.stream:
+            try:
+                self.stream.stop_stream()
+                self.stream.close()
+            except:
+                pass
+        if self.p:
+            try:
+                self.p.terminate()
+            except:
+                pass
         print("[Audio] Recording stopped and cleaned up.")
 
     def start(self):
@@ -193,3 +291,45 @@ class AudioCapture:
         if chunks:
             return np.concatenate(chunks).astype(np.float32)
         return None
+
+    def get_available_devices(self):
+        """Returns a list of dicts with available WASAPI loopback and unique input devices."""
+        devices = []
+        seen_names = set()
+        p = pyaudio.PyAudio()
+        try:
+            if HAS_WPATCH:
+                for loopback in p.get_loopback_device_info_generator():
+                    if loopback["name"] not in seen_names:
+                        seen_names.add(loopback["name"])
+                        devices.append({
+                            "index": loopback["index"],
+                            "name": loopback["name"],
+                            "channels": loopback["maxInputChannels"],
+                            "rate": int(loopback["defaultSampleRate"]),
+                            "is_loopback": True
+                        })
+            # Also add standard input devices (microphones/virtual cables), avoiding duplicates
+            for i in range(p.get_device_count()):
+                dev = p.get_device_info_by_index(i)
+                if dev["maxInputChannels"] > 0 and not dev.get("isLoopbackDevice", False):
+                    if dev["name"] not in seen_names:
+                        seen_names.add(dev["name"])
+                        devices.append({
+                            "index": dev["index"],
+                            "name": dev["name"],
+                            "channels": dev["maxInputChannels"],
+                            "rate": int(dev["defaultSampleRate"]),
+                            "is_loopback": False
+                        })
+        except Exception as e:
+            print(f"[Audio] Error listing devices: {e}")
+        finally:
+            p.terminate()
+        return devices
+
+    def set_device(self, device_index):
+        """Switches the active recording device safely without C-level memory conflicts."""
+        print(f"[Audio] Requesting device switch to index {device_index}")
+        self.selected_device_index = device_index
+        self.device_switch_requested = True

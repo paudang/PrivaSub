@@ -128,6 +128,28 @@ This will cleanly stop all background audio recording streams, close the GUI win
 
 ---
 
+## Troubleshooting & Audio Selection Guide
+
+### How to Select the Correct Audio Source
+Windows lists multiple sound devices, virtual cables, and hardware outputs. If PrivaSub does not appear to detect audio, follow these rules to pick the right device from the **Audio Source** menu in the System Tray:
+
+1. **Capturing System Audio (Zoom, Teams, YouTube, Browser):**
+   * Select a device with the `[Loopback]` prefix.
+   * **Listening via Laptop/Desktop Speakers:** Choose `[Loopback] Speakers (Realtek(R) Audio)` or your primary monitor output.
+   * **Listening via Headset / AirPods / Bluetooth:** Choose `[Loopback] Headset Earphone` or `[Loopback] Headphones`. *Note: If you switch from speakers to headphones during a meeting, make sure to select the corresponding `[Loopback]` device.*
+
+2. **Capturing Your Own Voice (Microphone):**
+   * Select a device with the `[Mic]` prefix.
+   * **Using Built-in Mic:** Choose `[Mic] Microphone Array (Realtek(R) Audio)`.
+   * **Using External Mic / Headset Mic:** Choose `[Mic] Headset Microphone` or your dedicated USB microphone.
+
+### What if Subtitles are Stuck or Unresponsive?
+* **Verify Audio Activity:** PrivaSub uses an intelligent **Silero VAD (Voice Activity Detector)** to keep CPU usage near 0%. If the audio contains only background music, silence, or non-speech noise, the transcriber intentionally remains idle.
+* **Check Mute/Pause Status:** Ensure you haven't clicked **Pause Listening** in the System Tray menu.
+* **Device Exclusivity:** If another application (like a DAW or specialized audio tool) takes exclusive control of your audio driver, right-click the System Tray icon and select another available audio source to re-establish the connection.
+
+---
+
 ## Roadmap
 
 We maintain a public Trello board where you can track our progress, see upcoming features, and vote on cards:

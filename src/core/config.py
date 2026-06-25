@@ -15,7 +15,8 @@ DEFAULT_CONFIG = {
     "target_language": "None",
     "stealth_mode": False,
     "disguised_mode": False,
-    "discreet_tray_icon": False
+    "discreet_tray_icon": False,
+    "audio_device_index": None
 }
 
 class AppConfig:
