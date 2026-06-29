@@ -65,13 +65,29 @@ class AudioCapture:
         return None
 
     def resample(self, audio_data, orig_sr, target_sr=16000):
-        """Linearly resamples audio from orig_sr to target_sr using numpy."""
+        """Resamples audio from orig_sr to target_sr using fast decimation or cached linear interpolation."""
         if orig_sr == target_sr:
             return audio_data
-        duration = len(audio_data) / orig_sr
-        num_samples = int(duration * target_sr)
-        x_orig = np.linspace(0, duration, len(audio_data))
-        x_target = np.linspace(0, duration, num_samples)
+            
+        # Fast path: if native device rate is a direct multiple of 16000 (e.g. 48000Hz or 32000Hz),
+        # perform zero-allocation decimation (slicing) which runs in O(1) time.
+        if orig_sr % target_sr == 0:
+            step = orig_sr // target_sr
+            return audio_data[::step]
+            
+        # Slow path fallback: cached linear interpolation (avoids repeating np.linspace on every chunk)
+        cache_key = (len(audio_data), orig_sr)
+        if not hasattr(self, '_resample_cache'):
+            self._resample_cache = {}
+            
+        if cache_key not in self._resample_cache:
+            duration = len(audio_data) / orig_sr
+            num_samples = int(duration * target_sr)
+            x_orig = np.linspace(0, duration, len(audio_data), dtype=np.float32)
+            x_target = np.linspace(0, duration, num_samples, dtype=np.float32)
+            self._resample_cache[cache_key] = (x_target, x_orig)
+            
+        x_target, x_orig = self._resample_cache[cache_key]
         return np.interp(x_target, x_orig, audio_data).astype(np.float32)
 
     def _record_loop(self):
@@ -214,14 +230,17 @@ class AudioCapture:
                 # Convert bytes to numpy 16-bit integer array
                 audio_np = np.frombuffer(raw_data, dtype=np.int16)
                 
-                # Reshape to channels if stereo/multi-channel
-                if self.device_channels > 1:
+                # Reshape and downmix to mono (with optimized stereo fast path)
+                if self.device_channels == 2:
+                    n_frames = len(audio_np) // 2
+                    audio_float32 = (audio_np[0:2*n_frames:2].astype(np.float32) + audio_np[1:2*n_frames:2].astype(np.float32)) / 65536.0
+                elif self.device_channels > 2:
                     audio_np = audio_np.reshape(-1, self.device_channels)
                     # Downmix to mono by averaging channels
                     audio_np = audio_np.mean(axis=1)
-                
-                # Convert to float32 and normalize to [-1.0, 1.0]
-                audio_float32 = audio_np.astype(np.float32) / 32768.0
+                    audio_float32 = audio_np.astype(np.float32) / 32768.0
+                else:
+                    audio_float32 = audio_np.astype(np.float32) / 32768.0
                 
                 # Resample to 16kHz
                 audio_resampled = self.resample(audio_float32, self.device_rate, self.target_rate)

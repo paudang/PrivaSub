@@ -46,6 +46,12 @@ class SubtitleOverlay(ctk.CTk):
         # Make the background look like a dark translucent pill
         self.configure(fg_color="#121212")
         
+        if sys.platform == "win32":
+            try:
+                self.wm_attributes("-transparentcolor", "#121212")
+            except Exception:
+                pass
+        
         # Add visual components
         self.main_frame = ctk.CTkFrame(
             self,
@@ -67,15 +73,27 @@ class SubtitleOverlay(ctk.CTk):
         )
         self.textbox.pack(expand=True, fill="both", padx=10, pady=10)
         
+        # Configure typographical line/paragraph spacing for ultimate closed-caption readability
+        try:
+            self.textbox._textbox.configure(
+                spacing1=2,
+                spacing2=4,
+                spacing3=8
+            )
+        except Exception:
+            pass
+        
         # Prevent keyboard input to make it read-only but keep it normal state
         # so touch scrolling and text selection still works flawlessly
         self.textbox.bind("<Key>", lambda e: "break")
         self.textbox.bind("<<Paste>>", lambda e: "break")
         self.textbox.bind("<<Cut>>", lambda e: "break")
         
-        # Configure tags for colors
+        # Configure tags for colors and styles (both final and interim)
         self.textbox.tag_config("en", foreground="#FFFFFF")
         self.textbox.tag_config("vi", foreground="#FFD60A")
+        self.textbox.tag_config("en_interim", foreground="#A1A1A6") # Sleek iOS-style light gray
+        self.textbox.tag_config("vi_interim", foreground="#B59A08") # Faded/dark gold
 
         # Dragging logic (when not locked)
         self.main_frame.configure(cursor="hand2")
@@ -262,6 +280,8 @@ class SubtitleOverlay(ctk.CTk):
             self.textbox.configure(fg_color="#FFFFFF", text_color="#000000")
             self.textbox.tag_config("en", foreground="#000000")
             self.textbox.tag_config("vi", foreground="#333333")
+            self.textbox.tag_config("en_interim", foreground="#555555")
+            self.textbox.tag_config("vi_interim", foreground="#666666")
             self.attributes("-alpha", 1.0)
         else:
             self.overrideredirect(True)
@@ -270,6 +290,8 @@ class SubtitleOverlay(ctk.CTk):
             self.textbox.configure(fg_color="transparent", text_color="#FFFFFF")
             self.textbox.tag_config("en", foreground="#FFFFFF")
             self.textbox.tag_config("vi", foreground="#FFD60A")
+            self.textbox.tag_config("en_interim", foreground="#A1A1A6")
+            self.textbox.tag_config("vi_interim", foreground="#B59A08")
             self.attributes("-alpha", self.target_alpha)
         print(f"[UI] Disguised Mode set to: {enabled}")
 
@@ -282,6 +304,8 @@ class SubtitleOverlay(ctk.CTk):
 
     def set_text(self, en_text, vi_text="", is_final=False):
         """Updates subtitle text and manages showing/hiding states."""
+        if not en_text and not vi_text:
+            return
         # Cancel current fade animation if active
         self.is_fading = False
         
@@ -291,15 +315,14 @@ class SubtitleOverlay(ctk.CTk):
         if not self.winfo_viewable():
             self.deiconify()
             
-        # Reset hide timer on new text
-        self.reset_hide_timer()
-        
         # If there is previous interim text, delete it
         try:
             self.textbox.delete("interim.first", "interim.last")
         except:
             pass
             
+        en_tag = "en" if is_final else "en_interim"
+        vi_tag = "vi" if is_final else "vi_interim"
         tag = "interim" if not is_final else "final"
         
         # Smart Auto-Scroll check BEFORE inserting
@@ -311,23 +334,24 @@ class SubtitleOverlay(ctk.CTk):
             is_at_bottom = True
             
         if en_text:
-            self.textbox.insert("end", en_text + "\n", ("en", tag))
+            self.textbox.insert("end", en_text + "\n", (en_tag, tag))
         if vi_text:
-            self.textbox.insert("end", vi_text + "\n", ("vi", tag))
+            self.textbox.insert("end", vi_text + "\n", (vi_tag, tag))
             
         if is_final:
             # Add an extra blank line for separation after a final segment
             self.textbox.insert("end", "\n", "final")
             
-        # Manage history limit (max_history defines max lines to keep)
-        try:
-            current_lines = int(self.textbox.index("end-1c").split('.')[0])
-            max_lines = self.max_history
-            if current_lines > max_lines:
-                lines_to_delete = current_lines - max_lines
-                self.textbox.delete("1.0", f"{lines_to_delete + 1}.0")
-        except Exception as e:
-            print(f"[UI] Error pruning history: {e}")
+            # Manage history limit (max_history defines max lines to keep)
+            # We ONLY prune history when finalizing a segment to avoid CPU overhead during typing
+            try:
+                current_lines = int(self.textbox.index("end-1c").split('.')[0])
+                max_lines = self.max_history
+                if current_lines > max_lines:
+                    lines_to_delete = current_lines - max_lines
+                    self.textbox.delete("1.0", f"{lines_to_delete + 1}.0")
+            except Exception as e:
+                print(f"[UI] Error pruning history: {e}")
 
         # Only auto-scroll to the bottom if the user was already at the bottom
         if is_at_bottom:
@@ -361,6 +385,10 @@ class SubtitleOverlay(ctk.CTk):
             self.withdraw()  # Hide window completely
             self.is_fading = False
             self.hide_timer_id = None
+            try:
+                self.textbox.delete("1.0", "end")
+            except Exception:
+                pass
             return
             
         next_alpha = start_alpha - (start_alpha - end_alpha) / steps_remaining

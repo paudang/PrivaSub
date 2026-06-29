@@ -5,7 +5,7 @@ import logging
 logger = logging.getLogger("PrivaSub.Config")
 
 CONFIG_FILE = "config.json"
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.3.0"
 
 DEFAULT_CONFIG = {
     "max_history_lines": 500,
