@@ -97,10 +97,19 @@ You can start the application using one of the following methods:
 
 ### Running Automated Tests
 
-To execute the entire unit test suite and verify that all local modules (audio extraction, speech recognition, translation, and export formats) are functional, run:
-```bash
-python run_tests.py
-```
+You can run the tests using one of the following commands depending on what you want to verify:
+
+*   **Run the entire test suite** (both unit and integration tests):
+    ```bash
+    python run_tests.py
+    ```
+    
+*   **Run the integration tests specifically**:
+    To run the end-to-end integration tests that verify real-time speech transcription and translation on local video files, run:
+    ```bash
+    .venv\Scripts\python -m unittest tests.integration.test_integration -v
+    ```
+    *(If your virtual environment is already activated, you can simply run `python -m unittest tests.integration.test_integration -v`)*.
 
 ### Viewing Documentation Locally (VitePress)
 

@@ -52,16 +52,18 @@ class TestSubtitleOverlay(unittest.TestCase):
     def test_set_text_interim(self):
         # Test inserting interim text
         self.app.set_text("Hel", "Xi", is_final=False)
+        text_content = self.app.textbox.get("1.0", "end-1c")
+        self.assertIn("Hel", text_content)
         
         # Test replacing interim text with new interim text
         self.app.set_text("Hello world", "Xin chào thế giới", is_final=False)
-        text_content = self.app.textbox.get("1.0", "end-1c")
-        
-        self.assertNotIn("Hel\n", text_content)
-        self.assertIn("Hello world", text_content)
+        text_content2 = self.app.textbox.get("1.0", "end-1c")
+        self.assertEqual(text_content2, "Hello world\nXin chào thế giới")
         
         # Finalize
         self.app.set_text("Hello world", "Xin chào thế giới", is_final=True)
+        text_content3 = self.app.textbox.get("1.0", "end-1c")
+        self.assertIn("Hello world", text_content3)
 
     def test_history_limit(self):
         # Lower max history to 7 lines for quick testing

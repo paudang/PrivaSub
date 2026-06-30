@@ -194,9 +194,6 @@ class AudioCapture:
                         "input_device_index": self.device_index,
                         "frames_per_buffer": chunk_size
                     }
-                    if is_loopback_mode and HAS_WPATCH:
-                        open_kwargs["as_loopback"] = True
-                        
                     self.stream = self.p.open(**open_kwargs)
                     print("[Audio] Recording started successfully.")
                 except Exception as e:
