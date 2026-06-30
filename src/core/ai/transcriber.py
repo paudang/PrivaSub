@@ -43,8 +43,9 @@ class Transcriber:
         # Configuration parameters
         self.max_buffer_seconds = 8.0  # Max length of speech buffer before force-split (optimized for subtitle readability)
         self.silence_threshold_seconds = 1.2  # Silence duration to finalize sentence
+        self.last_final_text = ""
         
-    def process_audio(self, new_audio_chunk):
+    def _process_audio_core(self, new_audio_chunk):
         """
         Processes a new chunk of float32 audio.
         Returns:
@@ -71,6 +72,17 @@ class Transcriber:
             self.speech_detected = False
             self.last_text = ""
             return final_text, True
+
+        # 1. Fast energy-based pre-VAD filter
+        # If the new chunk is silent (below noise floor), we bypass Whisper completely.
+        peak_chunk = np.max(np.abs(new_audio_chunk)) if len(new_audio_chunk) > 0 else 0.0
+        if peak_chunk < 0.002:
+            self.silence_ticks += len(new_audio_chunk) / self.sample_rate
+            if self.silence_ticks >= self.silence_threshold_seconds and self.speech_detected:
+                final_text = self.last_text
+                self.reset_buffer()
+                return final_text, True
+            return None
 
         # Dynamic Volume Normalization for low-volume WebRTC/Phone audio streams
         # If peak volume is low but above noise floor, apply gentle digital gain
@@ -155,15 +167,59 @@ class Transcriber:
         
         return current_text, False
 
+    def process_audio(self, new_audio_chunk):
+        res = self._process_audio_core(new_audio_chunk)
+        if res is None:
+            return None
+        text, is_final = res
+        
+        # Apply word-level deduplication against the last finalized segment
+        clean_text = self.deduplicate(text)
+        
+        if is_final:
+            self.last_final_text = clean_text
+            
+        return clean_text, is_final
+
+    def deduplicate(self, text):
+        if not self.last_final_text or not text:
+            return text
+            
+        import re
+        def clean_word(w):
+            return re.sub(r'[^\w]', '', w.lower())
+            
+        prev_words = [clean_word(w) for w in self.last_final_text.split() if clean_word(w)]
+        new_words = [clean_word(w) for w in text.split() if clean_word(w)]
+        
+        if not prev_words or not new_words:
+            return text
+            
+        max_overlap = min(len(prev_words), len(new_words), 8)
+        for length in range(max_overlap, 0, -1):
+            if prev_words[-length:] == new_words[:length]:
+                orig_words = text.split()
+                return " ".join(orig_words[length:])
+        return text
+
     def reset_buffer(self):
         """Clears the current audio buffer and resets speech status."""
         self.audio_buffer = np.zeros(0, dtype=np.float32)
         self.silence_ticks = 0
         self.speech_detected = False
         self.last_text = ""
+        self.last_final_text = ""
 
     def set_language(self, language):
         """Dynamically switches the transcription language."""
         self.language = language
         print(f"[AI] Whisper transcription language set to '{language}'")
+
+    def finalize(self):
+        """Forces finalization of any remaining text in the buffer."""
+        if self.speech_detected and self.last_text:
+            text = self.last_text
+            self.reset_buffer()
+            return text
+        return ""
 

@@ -223,8 +223,16 @@ class PrivaSubApp:
         if self.is_paused:
             print("[Main] Pausing...")
             self.capture.pause()
-            self.transcriber.reset_buffer()
-            self.app.after(0, self.app.set_text, "PrivaSub: Paused", "", True)
+            # Flush and finalize any remaining text before pausing
+            final_text = self.transcriber.finalize()
+            if final_text:
+                if not final_text[0].isupper():
+                    final_text = final_text[0].upper() + final_text[1:]
+                trans_text = ""
+                if self.target_language != "None" and self.target_language != "None (English Only)":
+                    trans_text = self.translator.translate(final_text)
+                self.app.after(0, self.app.set_text, final_text, trans_text, True)
+            self.app.after(100, self.app.set_text, "PrivaSub: Paused", "", True)
         else:
             print("[Main] Resuming...")
             self.capture.resume()
@@ -289,13 +297,62 @@ class PrivaSubApp:
             
         self.settings_win = SettingsWindow(parent_app=self, on_save_callback=on_settings_saved)
 
+    def _process_and_update(self, chunk):
+        """Helper to run transcription/translation on a chunk and post UI updates."""
+        res = self.transcriber.process_audio(chunk)
+        if res:
+            text, is_final = res
+            
+            # Capitalize first letter of English for display
+            if text and not text[0].isupper():
+                text = text[0].upper() + text[1:]
+                
+            # Translate offline only if a target language is selected
+            trans_text = ""
+            if self.target_language != "None" and self.target_language != "None (English Only)":
+                current_time = time.time()
+                
+                if is_final:
+                    # Always translate final segments immediately
+                    if text == self.last_translated_text:
+                        trans_text = self.cached_vi_text
+                    else:
+                        trans_text = self.translator.translate(text)
+                    self.last_translated_text = ""
+                    self.cached_vi_text = ""
+                elif text == self.last_translated_text:
+                    # Reuse cache if text has not changed
+                    trans_text = self.cached_vi_text
+                elif current_time - self.last_translation_time > 0.4:
+                    # Rate-limit translations of growing interim text (400ms) to sync with transcription rate
+                    trans_text = self.translator.translate(text)
+                    self.last_translation_time = current_time
+                    self.last_translated_text = text
+                    self.cached_vi_text = trans_text
+                else:
+                    # Keep displaying cached text during rate limit interval
+                    trans_text = self.cached_vi_text
+                    
+            # Push UI update task to Tkinter main thread loop safely
+            try:
+                self.app.after(0, self.app.set_text, text, trans_text, is_final)
+            except Exception:
+                pass
+
     def audio_processing_loop(self):
         """Background thread loop that pulls audio from the queue and feeds it to Whisper."""
         audio_stream_active_notified = False
         import numpy as np
         
+        accumulated_chunks = []
+        last_trans_run_time = 0.0
+        
         while self.running:
             if self.is_paused:
+                if accumulated_chunks:
+                    combined = np.concatenate(accumulated_chunks)
+                    accumulated_chunks = []
+                    self._process_and_update(combined)
                 time.sleep(0.1)
                 continue
                 
@@ -303,47 +360,27 @@ class PrivaSubApp:
             chunk = self.capture.get_audio_chunk()
             
             if chunk is not None and len(chunk) > 0:
+                accumulated_chunks.append(chunk)
+                
                 # Check if audio stream has active sound energy
                 if not audio_stream_active_notified and np.max(np.abs(chunk)) > 0.001:
                     audio_stream_active_notified = True
                     if hasattr(self.app, 'get_current_text') and self.app.get_current_text() == "PrivaSub loaded. Listening to system audio...":
-                        self.app.after(0, self.app.set_text, "PrivaSub: Audio stream active, waiting for speech...", "", False)
-
-                # Transcribe
-                res = self.transcriber.process_audio(chunk)
-                if res:
-                    text, is_final = res
-                    
-                    # Capitalize first letter of English for display
-                    if text and not text[0].isupper():
-                        text = text[0].upper() + text[1:]
-                        
-                    # Translate offline only if a target language is selected
-                    trans_text = ""
-                    if self.target_language != "None" and self.target_language != "None (English Only)":
-                        current_time = time.time()
-                        
-                        if is_final:
-                            # Always translate final segments immediately
-                            trans_text = self.translator.translate(text)
-                            self.last_translated_text = ""
-                            self.cached_vi_text = ""
-                        elif text == self.last_translated_text:
-                            # Reuse cache if text has not changed
-                            trans_text = self.cached_vi_text
-                        elif current_time - self.last_translation_time > 0.6:
-                            # Rate-limit translations of growing interim text (600ms) to prevent flickering
-                            trans_text = self.translator.translate(text)
-                            self.last_translation_time = current_time
-                            self.last_translated_text = text
-                            self.cached_vi_text = trans_text
-                        else:
-                            # Keep displaying cached text during rate limit interval
-                            trans_text = self.cached_vi_text
-                            
-                    # Push UI update task to Tkinter main thread loop safely
-                    self.app.after(0, self.app.set_text, text, trans_text, is_final)
-            else:
+                        try:
+                            self.app.after(0, self.app.set_text, "PrivaSub: Audio stream active, waiting for speech...", "", False)
+                        except Exception:
+                            pass
+            
+            # Rate-limit transcription: run only when we have at least 400ms of audio (6400 samples)
+            # or if 400ms has elapsed since the last processing run and we have accumulated audio.
+            current_time = time.time()
+            if accumulated_chunks and (sum(len(c) for c in accumulated_chunks) >= 6400 or (current_time - last_trans_run_time >= 0.4)):
+                combined_chunk = np.concatenate(accumulated_chunks)
+                accumulated_chunks = []
+                self._process_and_update(combined_chunk)
+                last_trans_run_time = current_time
+                
+            if chunk is None:
                 time.sleep(0.05)
 
     def on_exit(self, icon, item):

@@ -34,7 +34,7 @@ class SubtitleOverlay(ctk.CTk):
         
         # Subtitle window size
         self.win_width = int(screen_width * 0.40)
-        self.win_height = 150 # Increased slightly for scrollable history
+        self.win_height = 150
         self.min_width = self.win_width
         self.min_height = self.win_height
         
@@ -45,6 +45,12 @@ class SubtitleOverlay(ctk.CTk):
         
         # Make the background look like a dark translucent pill
         self.configure(fg_color="#121212")
+        
+        if sys.platform == "win32":
+            try:
+                self.wm_attributes("-transparentcolor", "#121212")
+            except Exception:
+                pass
         
         # Add visual components
         self.main_frame = ctk.CTkFrame(
@@ -67,15 +73,27 @@ class SubtitleOverlay(ctk.CTk):
         )
         self.textbox.pack(expand=True, fill="both", padx=10, pady=10)
         
+        # Configure typographical line/paragraph spacing for ultimate closed-caption readability
+        try:
+            self.textbox._textbox.configure(
+                spacing1=2,
+                spacing2=4,
+                spacing3=8
+            )
+        except Exception:
+            pass
+        
         # Prevent keyboard input to make it read-only but keep it normal state
         # so touch scrolling and text selection still works flawlessly
         self.textbox.bind("<Key>", lambda e: "break")
         self.textbox.bind("<<Paste>>", lambda e: "break")
         self.textbox.bind("<<Cut>>", lambda e: "break")
         
-        # Configure tags for colors
+        # Configure tags for colors and styles (both final and interim)
         self.textbox.tag_config("en", foreground="#FFFFFF")
         self.textbox.tag_config("vi", foreground="#FFD60A")
+        self.textbox.tag_config("en_interim", foreground="#A1A1A6") # Sleek iOS-style light gray
+        self.textbox.tag_config("vi_interim", foreground="#B59A08") # Faded/dark gold
 
         # Dragging logic (when not locked)
         self.main_frame.configure(cursor="hand2")
@@ -125,6 +143,25 @@ class SubtitleOverlay(ctk.CTk):
         
         # Initially visible, but will hide quickly if no speech
         self.reset_hide_timer()
+        
+        # Cache for currently displayed interim text to avoid redundant updates and flickering
+        self.last_en_interim = ""
+        self.last_vi_interim = ""
+
+    def is_scrolled_to_bottom(self):
+        """Returns True if the scroll position is at the very bottom (with a small margin)."""
+        try:
+            _, y_end = self.textbox._textbox.yview()
+            return y_end >= 0.98
+        except Exception:
+            return True
+
+    def is_end_visible(self):
+        """Returns True if the very end of the text is currently visible on the screen."""
+        try:
+            return self.textbox._textbox.bbox("end-1c") is not None
+        except Exception:
+            return True
 
     def on_mousewheel(self, event):
         if self.is_locked:
@@ -155,9 +192,6 @@ class SubtitleOverlay(ctk.CTk):
         new_x = self._win_start_x + dx
         new_y = self._win_start_y + dy
         
-        # We don't clamp X and Y to 0 or screen_width because it prevents dragging
-        # to secondary monitors (which have negative X or X > screen_width).
-        
         self.geometry(f"+{new_x}+{new_y}")
 
     def start_resize(self, event):
@@ -178,8 +212,7 @@ class SubtitleOverlay(ctk.CTk):
         new_width = max(self._start_width + dx, self.min_width)
         new_height = max(self._start_height + dy, self.min_height)
         
-        # Constrain dimensions so the window itself isn't larger than a standard screen.
-        # We use winfo_screenwidth/height as a sane maximum size.
+        # Constrain dimensions so the window itself isn't larger than a standard screen
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
         
@@ -236,7 +269,6 @@ class SubtitleOverlay(ctk.CTk):
         if sys.platform == "win32":
             try:
                 hwnd = ctypes.windll.user32.GetParent(self.winfo_id())
-                # GA_ROOT = 2: Retrieves the root window by walking the chain of parent windows
                 root_hwnd = ctypes.windll.user32.GetAncestor(self.winfo_id(), 2) or hwnd
                 WDA_NONE = 0x00000000
                 WDA_EXCLUDEFROMCAPTURE = 0x00000011
@@ -262,6 +294,8 @@ class SubtitleOverlay(ctk.CTk):
             self.textbox.configure(fg_color="#FFFFFF", text_color="#000000")
             self.textbox.tag_config("en", foreground="#000000")
             self.textbox.tag_config("vi", foreground="#333333")
+            self.textbox.tag_config("en_interim", foreground="#555555")
+            self.textbox.tag_config("vi_interim", foreground="#666666")
             self.attributes("-alpha", 1.0)
         else:
             self.overrideredirect(True)
@@ -270,6 +304,8 @@ class SubtitleOverlay(ctk.CTk):
             self.textbox.configure(fg_color="transparent", text_color="#FFFFFF")
             self.textbox.tag_config("en", foreground="#FFFFFF")
             self.textbox.tag_config("vi", foreground="#FFD60A")
+            self.textbox.tag_config("en_interim", foreground="#A1A1A6")
+            self.textbox.tag_config("vi_interim", foreground="#B59A08")
             self.attributes("-alpha", self.target_alpha)
         print(f"[UI] Disguised Mode set to: {enabled}")
 
@@ -281,7 +317,31 @@ class SubtitleOverlay(ctk.CTk):
             return ""
 
     def set_text(self, en_text, vi_text="", is_final=False):
-        """Updates subtitle text and manages showing/hiding states."""
+        """Updates subtitle text and manages showing/hiding states with zero-flicker in-place updates."""
+        # Strip punctuation for UI display to prevent visual stutter (speech transcription only)
+        if en_text:
+            is_system_msg = any(en_text.startswith(prefix) for prefix in ["PrivaSub", "Captions Overlay", "Stealth Mode", "Disguised Mode"])
+            if not is_system_msg:
+                import re
+                en_text = re.sub(r'[.,!?;;:]', '', en_text)
+                en_text = re.sub(r'\s+', ' ', en_text).strip()
+                if vi_text:
+                    vi_text = re.sub(r'[.,!?;;:]', '', vi_text)
+                    vi_text = re.sub(r'\s+', ' ', vi_text).strip()
+
+        if not en_text and not vi_text:
+            return
+            
+        # Redundant update check to prevent flickering/stuttering on identical updates
+        if not is_final:
+            if en_text == self.last_en_interim and vi_text == self.last_vi_interim:
+                return
+            self.last_en_interim = en_text
+            self.last_vi_interim = vi_text
+        else:
+            self.last_en_interim = ""
+            self.last_vi_interim = ""
+
         # Cancel current fade animation if active
         self.is_fading = False
         
@@ -291,47 +351,80 @@ class SubtitleOverlay(ctk.CTk):
         if not self.winfo_viewable():
             self.deiconify()
             
-        # Reset hide timer on new text
-        self.reset_hide_timer()
+        # Check if user is scrolled to the bottom before we modify content
+        should_scroll = self.is_scrolled_to_bottom()
         
-        # If there is previous interim text, delete it
+        # Temporarily disable scrolling callbacks to avoid layout/scrollbar jitter during update
+        old_yscroll = None
         try:
-            self.textbox.delete("interim.first", "interim.last")
-        except:
+            old_yscroll = self.textbox._textbox.cget("yscrollcommand")
+            self.textbox._textbox.configure(yscrollcommand="")
+        except Exception:
+            pass
+
+        # 1. Clear any existing interim text block safely using "interim" tag range
+        try:
+            ranges = self.textbox._textbox.tag_ranges("interim")
+            if ranges:
+                self.textbox.delete("interim.first", "interim.last")
+        except Exception:
             pass
             
-        tag = "interim" if not is_final else "final"
-        
-        # Smart Auto-Scroll check BEFORE inserting
-        try:
-            # yview()[1] is 1.0 if the scrollbar is exactly at the bottom
-            scroll_pos = self.textbox._textbox.yview()
-            is_at_bottom = (scroll_pos[1] >= 0.99)
-        except Exception:
-            is_at_bottom = True
+        # 2. Insert new text contents at the end of the document
+        if not is_final:
+            interim_tag = "interim"
+            en_tag = "en_interim"
+            vi_tag = "vi_interim"
             
-        if en_text:
-            self.textbox.insert("end", en_text + "\n", ("en", tag))
-        if vi_text:
-            self.textbox.insert("end", vi_text + "\n", ("vi", tag))
+            # Insert English interim text
+            if en_text:
+                self.textbox.insert("end", en_text, (en_tag, interim_tag))
+            # Insert Vietnamese interim text below if present
+            if vi_text:
+                self.textbox.insert("end", "\n" + vi_text, (vi_tag, interim_tag))
+        else:
+            # Final text: insert English and Vietnamese with proper trailing newlines
+            en_tag = "en"
+            vi_tag = "vi"
             
-        if is_final:
+            if en_text:
+                self.textbox.insert("end", en_text + "\n", en_tag)
+            if vi_text:
+                self.textbox.insert("end", vi_text + "\n", vi_tag)
+                
             # Add an extra blank line for separation after a final segment
             self.textbox.insert("end", "\n", "final")
             
-        # Manage history limit (max_history defines max lines to keep)
-        try:
-            current_lines = int(self.textbox.index("end-1c").split('.')[0])
-            max_lines = self.max_history
-            if current_lines > max_lines:
-                lines_to_delete = current_lines - max_lines
-                self.textbox.delete("1.0", f"{lines_to_delete + 1}.0")
-        except Exception as e:
-            print(f"[UI] Error pruning history: {e}")
+            # Manage history limit (max_history defines max lines to keep)
+            try:
+                current_lines = int(self.textbox.index("end-1c").split('.')[0])
+                max_lines = self.max_history
+                if current_lines > max_lines:
+                    lines_to_delete = current_lines - max_lines
+                    self.textbox.delete("1.0", f"{lines_to_delete + 1}.0")
+            except Exception as e:
+                print(f"[UI] Error pruning history: {e}")
 
-        # Only auto-scroll to the bottom if the user was already at the bottom
-        if is_at_bottom:
-            self.textbox.see("end")
+        # Restore scrolling callbacks
+        if old_yscroll:
+            try:
+                self.textbox._textbox.configure(yscrollcommand=old_yscroll)
+            except Exception:
+                pass
+
+        # 3. Intelligent auto-scrolling
+        # Only scroll if the user was at the bottom AND the new text actually went off-screen.
+        # This prevents scroll position yanking on every character update, eliminating visual stutter.
+        if should_scroll and not self.is_end_visible():
+            try:
+                self.textbox.see("end")
+                # Only run the delayed after(50) callback for finalized text updates.
+                # For high-frequency interim updates, immediate see("end") is enough 
+                # and avoids flooding the Tkinter queue with pending scroll events.
+                if is_final:
+                    self.after(50, lambda: self.textbox.see("end"))
+            except Exception:
+                pass
         
         # Handle auto-hide timers
         if self.hide_timer_id:
@@ -361,6 +454,10 @@ class SubtitleOverlay(ctk.CTk):
             self.withdraw()  # Hide window completely
             self.is_fading = False
             self.hide_timer_id = None
+            try:
+                self.textbox.delete("1.0", "end")
+            except Exception:
+                pass
             return
             
         next_alpha = start_alpha - (start_alpha - end_alpha) / steps_remaining
@@ -393,8 +490,6 @@ class SubtitleOverlay(ctk.CTk):
         
     def set_translation_visible(self, visible):
         """Toggles the visibility of the Vietnamese translation (updates logic for new segments)."""
-        # Since we use a textbox, we don't strictly hide the widget anymore.
-        # We just adjust the height if desired, or let the user see more history.
         if visible:
             self.min_height = 150
         else:

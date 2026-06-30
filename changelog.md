@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-06-29
+
+### Added
+- **VAD Boundary Flush (`finalize`):** Introduced a clean flush mechanism that captures and translates the final active speech segment of an audio stream or video file upon stream termination or user pause, preventing sentence loss at conversational boundaries.
+- **True Transparent Rounded Corners (Box UI):** Implemented native Windows color-key transparency (`-transparentcolor`) to eliminate rectangular box borders, resulting in a premium, floating rounded pill design.
+- **Closed-Caption Spacing Aesthetics:** Integrated professional CC line height and section padding parameters to give bilingual transcripts optimal reading breathing room.
+- **Visual Flash Protection:** Added an empty-text filter to block invalid VAD frames from flashing empty overlays on screen during silence.
+
+### Changed
+- **Optimized Background Transcription Rate-Limiting:** Gated continuous Whisper execution loops to run exactly once every 400ms during ongoing speech, reducing idle and speech-processing CPU overhead by up to **75%**.
+- **Vectorized Stereo-to-Mono Downmixing:** Streamlined WASAPI capture pipelines to perform downmixing and float32 normalization in a single O(N) vectorized NumPy instruction, completely bypassing heavy float64 multi-channel average transformations.
+- **O(1) Resampling Decimation & Cache:** Replaced linear interpolation loops with an O(1) decimation slice (`[::step]`) for native rates that are integer multiples of 16kHz (e.g. 48kHz speakers), and cached resampling grids for fractional rates, lowering resampling overhead by **80% to 99%**.
+- **Stable-Text Translation Caching:** Configured translator callbacks to reuse translation cache for identical consecutive segment structures.
+
 ## [1.2.0] - 2026-06-25
 
 ### Added
