@@ -67,17 +67,22 @@ PrivaSub is organized into feature-specific folders to keep the codebase modular
 
 ```text
 src/
-├── main.py                     # Main application entry point & tray icon
+├── main.py                     # Main application entry point & coordinator
 ├── core/                       # Core Processing & AI Logic
 │   ├── audio/                  # Audio I/O
 │   │   ├── system_audio.py     # WASAPI Loopback capture for live transcription
+│   │   ├── device_manager.py   # WASAPI device listing & default loopback search
 │   │   └── file_extractor.py   # PyAV audio track extraction for media files
-│   └── ai/                     # Local AI Models
-│       ├── transcriber.py      # faster-whisper and VAD integration
-│       └── translator.py       # CTranslate2 NLLB-200 offline translation
+│   ├── ai/                     # Local AI Models
+│   │   ├── transcriber.py      # faster-whisper and VAD integration
+│   │   └── translator.py       # CTranslate2 NLLB-200 offline translation
+│   └── hotkey.py               # Global panic hotkey manager
 ├── ui/                         # User Interface components
 │   ├── live/                   # Real-time subtitle overlay
-│   │   └── overlay.py          # CustomTkinter overlay with click-through and smart auto-scroll
+│   │   ├── overlay.py          # CustomTkinter overlay with smart auto-scroll
+│   │   ├── window_manager.py   # Drag/resize & Click-through styling helpers
+│   │   ├── animation.py        # Alpha-channel fade transitions
+│   │   └── tray.py             # System tray icon setup & menu manager
 │   └── batch/                  # Offline File Transcriber UI
 │       ├── window.py           # Main batch transcriber window
 │       └── dnd_base.py         # Drag-and-drop wrapper and fallback logic

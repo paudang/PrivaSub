@@ -23,7 +23,7 @@ class TestSystemAudio(unittest.TestCase):
         res_16k = cap.resample(data_48k, 48000, 16000)
         self.assertEqual(len(res_16k), 1600)
         
-    @patch("src.core.audio.system_audio.HAS_WPATCH", True)
+    @patch("src.core.audio.device_manager.HAS_WPATCH", True)
     @patch("src.core.audio.system_audio.pyaudio.PyAudio")
     def test_find_wasapi_loopback_device(self, mock_pyaudio):
         cap = AudioCapture()
@@ -47,7 +47,7 @@ class TestSystemAudio(unittest.TestCase):
         dev3 = cap.find_wasapi_loopback_device()
         self.assertIsNone(dev3)
 
-    @patch("src.core.audio.system_audio.HAS_WPATCH", False)
+    @patch("src.core.audio.device_manager.HAS_WPATCH", False)
     def test_find_wasapi_no_wpatch(self):
         cap = AudioCapture()
         self.assertIsNone(cap.find_wasapi_loopback_device())

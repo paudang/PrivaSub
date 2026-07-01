@@ -26,12 +26,13 @@ PrivaSub/
 ├── src/                       # Main source code directory
 │   ├── core/                  # Core domain logic
 │   │   ├── ai/                # transcriber.py (Whisper), translator.py (NLLB-200)
-│   │   ├── audio/             # system_audio.py (WASAPI loopback), file_extractor.py
-│   │   └── config.py          # AppConfig logic managing config.json & App Version
+│   │   ├── audio/             # system_audio.py (WASAPI loopback), device_manager.py, file_extractor.py
+│   │   ├── config.py          # AppConfig logic managing config.json & App Version
+│   │   └── hotkey.py          # HotkeyManager for global panic hotkey
 │   ├── services/              # Orchestration and background services (batch_processor.py)
 │   ├── ui/                    # GUI Windows and Overlays (CustomTkinter)
 │   │   ├── batch/             # Offline file transcriber window (window.py, dnd_base.py)
-│   │   ├── live/              # Floating transparent subtitle bar (overlay.py)
+│   │   ├── live/              # Floating transparent subtitle bar (overlay.py, window_manager.py, animation.py, tray.py)
 │   │   └── settings/          # Configuration UI (window.py)
 │   └── main.py                # Main application entrypoint, managing Threads & System Tray
 ├── tests/                     # Automated Unit Test suite (test_*.py)
@@ -51,10 +52,13 @@ PrivaSub maintains rigorous standards for stability and testability. Any codebas
 ### 3.1. Running Tests Locally
 The project uses the standard `unittest` framework combined with `coverage.py`. To execute the test suite locally:
 ```bash
-# 1. Run the entire test suite with coverage tracking
+# 1. Run the unit test suite with coverage tracking (excluding integration tests for CI/speed)
+coverage run run_tests.py --exclude-integration
+
+# 2. Run all tests including integration tests (local verification)
 coverage run run_tests.py
 
-# 2. Generate the coverage report and verify the 90% passing threshold
+# 3. Generate the coverage report and verify the 90% passing threshold
 coverage report -m --fail-under=90
 ```
 

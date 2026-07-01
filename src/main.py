@@ -3,13 +3,15 @@ import os
 import queue
 import threading
 import time
-from PIL import Image, ImageDraw
 import pystray
 import customtkinter as ctk
+from PIL import Image
 
 # Add project root directory to path to support 'src.' imports
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
+from src.ui.live.tray import TrayIconManager
+from src.core.hotkey import HotkeyManager
 from src.core.audio.system_audio import AudioCapture
 from src.core.ai.transcriber import Transcriber
 from src.core.ai.translator import OfflineTranslator
@@ -70,114 +72,44 @@ class PrivaSubApp:
         self.cached_vi_text = ""
         
         # 2. Setup System Tray Icon
-        self.tray_icon = None
-        self.setup_tray()
+        self.tray_manager = TrayIconManager(self)
+        self.tray_manager.setup_tray()
         
         # 3. Start processing threads
         self.process_thread = threading.Thread(target=self.audio_processing_loop, daemon=True)
         self.process_thread.start()
         
-        self.hotkey_thread = threading.Thread(target=self.hotkey_listener_loop, daemon=True)
-        self.hotkey_thread.start()
+        self.hotkey_manager = HotkeyManager(self)
+        self.hotkey_manager.start()
         
         # Start capturing audio
         self.capture.start()
         print("[Main] Ready! App minimized to System Tray.")
 
+    def get_tray_icon_image(self):
+        """Proxy to get_tray_icon_image in tray_manager for test compatibility."""
+        return self.tray_manager.get_tray_icon_image()
+
+    @property
+    def tray_icon(self):
+        """Compatibility property for tests."""
+        return self.tray_manager.tray_icon if hasattr(self, 'tray_manager') else None
+
+    @tray_icon.setter
+    def tray_icon(self, value):
+        """Compatibility property setter for tests."""
+        if hasattr(self, 'tray_manager'):
+            self.tray_manager.tray_icon = value
+
     def hotkey_listener_loop(self):
-        """Background loop to check for Panic Hotkey (Ctrl+Shift+Alt+P) on Windows."""
-        if sys.platform != 'win32':
-            return
-        import ctypes
-        VK_CONTROL = 0x11
-        VK_SHIFT = 0x10
-        VK_MENU = 0x12 # Alt
-        VK_P = 0x50
-        
-        while self.running:
-            time.sleep(0.05)
-            # Check if Ctrl, Shift, Alt, P are all pressed
-            if (ctypes.windll.user32.GetAsyncKeyState(VK_CONTROL) & 0x8000 and 
-                ctypes.windll.user32.GetAsyncKeyState(VK_SHIFT) & 0x8000 and 
-                ctypes.windll.user32.GetAsyncKeyState(VK_MENU) & 0x8000 and 
-                ctypes.windll.user32.GetAsyncKeyState(VK_P) & 0x8000):
-                
-                print("[Main] Panic Hotkey (Ctrl+Shift+Alt+P) detected! Toggling window visibility.")
-                self.app.after(0, self.on_panic_hotkey)
-                time.sleep(1.0) # Debounce delay
+        """Compatibility proxy method for tests."""
+        if hasattr(self, 'hotkey_manager'):
+            self.hotkey_manager._hotkey_listener_loop()
 
     def on_panic_hotkey(self):
-        if self.app.winfo_viewable():
-            self.app.withdraw()
-        else:
-            self.app.deiconify()
-
-    def get_tray_icon_image(self):
-        """Loads custom icon or falls back to programmatic generation."""
-        if getattr(self, 'is_discreet_icon', False):
-            # Discreet mode: create a generic dark icon with a subtle green dot
-            image = Image.new('RGBA', (64, 64), color=(0, 0, 0, 0))
-            dc = ImageDraw.Draw(image)
-            dc.ellipse([16, 16, 48, 48], fill="#2C2C2E")
-            dc.ellipse([28, 28, 36, 36], fill="#30D158")
-            return image
-            
-        icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "icon.png")
-        if os.path.exists(icon_path):
-            try:
-                return Image.open(icon_path)
-            except Exception as e:
-                print(f"[Main] Failed to load tray icon: {e}")
-                
-        # Fallback generated icon
-        image = Image.new('RGBA', (64, 64), color=(0, 0, 0, 0))
-        dc = ImageDraw.Draw(image)
-        dc.rounded_rectangle([4, 16, 60, 48], radius=8, fill="#1C1C1E", outline="#0A84FF", width=2)
-        dc.rectangle([12, 26, 42, 30], fill="#FFFFFF")
-        dc.rectangle([12, 34, 52, 38], fill="#0A84FF")
-        return image
-
-    def setup_tray(self):
-        """Builds the System Tray interface and menu."""
-        audio_menu_items = []
-        devices = self.capture.get_available_devices()
-        
-        def make_callback(dev_index, dev_name):
-            return lambda icon, item: self.on_select_audio_device(dev_index, dev_name)
-            
-        for dev in devices:
-            prefix = "[Loopback] " if dev['is_loopback'] else "[Mic] "
-            label = f"{prefix}{dev['name']}"
-            audio_menu_items.append(pystray.MenuItem(
-                label, 
-                make_callback(dev['index'], dev['name']),
-                checked=lambda item, idx=dev['index']: self.capture.selected_device_index == idx or (self.capture.selected_device_index is None and self.capture.device_index == idx)
-            ))
-            
-        audio_submenu = pystray.Menu(*audio_menu_items) if audio_menu_items else pystray.Menu(pystray.MenuItem("No devices found", lambda icon, item: None))
-
-        menu = pystray.Menu(
-            pystray.MenuItem("Toggle Draggable (Unlock)", self.on_toggle_lock, checked=lambda item: not self.is_locked),
-            pystray.MenuItem("Pause Listening", self.on_toggle_pause, checked=lambda item: self.is_paused),
-            pystray.MenuItem("Audio Source", audio_submenu),
-            pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Open File Transcriber", self.on_open_transcriber),
-            pystray.MenuItem("Settings", self.on_open_settings),
-            pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Show Caption Bar", self.on_show_bar),
-            pystray.MenuItem("Exit", self.on_exit)
-        )
-        
-        self.tray_icon = pystray.Icon(
-            "PrivaSub",
-            icon=self.get_tray_icon_image(),
-            title=f"PrivaSub v{APP_VERSION} - Offline Captions",
-            menu=menu
-        )
-        
-        # Run pystray in a background thread so it doesn't block the Tkinter main loop
-        tray_thread = threading.Thread(target=self.tray_icon.run, daemon=True)
-        tray_thread.start()
+        """Compatibility proxy method for tests."""
+        if hasattr(self, 'hotkey_manager'):
+            self.hotkey_manager.on_panic_hotkey()
 
     def on_select_audio_device(self, dev_index, dev_name):
         print(f"[Main] Selecting audio device: {dev_name} (Index: {dev_index})")
@@ -212,9 +144,7 @@ class PrivaSubApp:
 
     def on_toggle_discreet_icon(self, icon, item):
         self.is_discreet_icon = not self.is_discreet_icon
-        if self.tray_icon:
-            self.tray_icon.icon = self.get_tray_icon_image()
-            self.tray_icon.title = "Realtek Audio Monitor" if self.is_discreet_icon else f"PrivaSub v{APP_VERSION} - Offline Captions"
+        self.tray_manager.update_icon()
         print(f"[Main] Discreet Tray Icon Mode: {self.is_discreet_icon}")
 
     def on_toggle_pause(self, icon, item):
@@ -291,9 +221,7 @@ class PrivaSubApp:
             self.app.after(100, lambda: self.app.set_stealth_mode(self.is_stealth))
             self.app.set_disguised_mode(self.is_disguised)
             
-            if self.tray_icon:
-                self.tray_icon.icon = self.get_tray_icon_image()
-                self.tray_icon.title = "Realtek Audio Monitor" if self.is_discreet_icon else f"PrivaSub v{APP_VERSION} - Offline Captions"
+            self.tray_manager.update_icon()
             
         self.settings_win = SettingsWindow(parent_app=self, on_save_callback=on_settings_saved)
 
@@ -307,31 +235,12 @@ class PrivaSubApp:
             if text and not text[0].isupper():
                 text = text[0].upper() + text[1:]
                 
-            # Translate offline only if a target language is selected
+            # Translate offline only when the segment is finalized (is_final is True)
+            # to maximize NLLB-200 translation accuracy and reduce CPU usage.
             trans_text = ""
             if self.target_language != "None" and self.target_language != "None (English Only)":
-                current_time = time.time()
-                
                 if is_final:
-                    # Always translate final segments immediately
-                    if text == self.last_translated_text:
-                        trans_text = self.cached_vi_text
-                    else:
-                        trans_text = self.translator.translate(text)
-                    self.last_translated_text = ""
-                    self.cached_vi_text = ""
-                elif text == self.last_translated_text:
-                    # Reuse cache if text has not changed
-                    trans_text = self.cached_vi_text
-                elif current_time - self.last_translation_time > 0.4:
-                    # Rate-limit translations of growing interim text (400ms) to sync with transcription rate
                     trans_text = self.translator.translate(text)
-                    self.last_translation_time = current_time
-                    self.last_translated_text = text
-                    self.cached_vi_text = trans_text
-                else:
-                    # Keep displaying cached text during rate limit interval
-                    trans_text = self.cached_vi_text
                     
             # Push UI update task to Tkinter main thread loop safely
             try:
@@ -389,9 +298,9 @@ class PrivaSubApp:
         self.running = False
         self.capture.stop()
         
-        # Stop System Tray
-        if self.tray_icon:
-            self.tray_icon.stop()
+        # Stop System Tray and Hotkey manager
+        self.tray_manager.stop()
+        self.hotkey_manager.stop()
             
         # Stop CustomTkinter UI and any secondary windows
         if self.transcriber_win is not None:

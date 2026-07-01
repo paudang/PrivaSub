@@ -133,6 +133,51 @@ class TestTranscriber(unittest.TestCase):
             self.assertEqual(text, "Hello")
             self.assertTrue(is_final)
         finally:
+            # Restore
+            self.transcriber.model.transcribe = orig_transcribe
+
+    def test_deduplicate(self):
+        """Verifies word-level deduplication against the last finalized segment."""
+        self.transcriber.last_final_text = "Hello world"
+        
+        # Overlapping case
+        result = self.transcriber.deduplicate("world today")
+        self.assertEqual(result, "today")
+        
+        # No overlap case
+        result = self.transcriber.deduplicate("good morning")
+        self.assertEqual(result, "good morning")
+        
+        # Empty inputs case
+        self.transcriber.last_final_text = ""
+        result = self.transcriber.deduplicate("hello")
+        self.assertEqual(result, "hello")
+
+    def test_finalize(self):
+        """Verifies manual finalization of the active transcriber buffer."""
+        self.transcriber.speech_detected = True
+        self.transcriber.last_text = "Remaining text in buffer"
+        
+        result = self.transcriber.finalize()
+        self.assertEqual(result, "Remaining text in buffer")
+        self.assertFalse(self.transcriber.speech_detected)
+        self.assertEqual(len(self.transcriber.audio_buffer), 0)
+        
+        # Finalizing empty buffer
+        result = self.transcriber.finalize()
+        self.assertEqual(result, "")
+
+    def test_gain_normalization(self):
+        """Checks VAD & Whisper transcription runs with low volume normalization without errors."""
+        # Create low amplitude audio (peak is 0.1, which triggers gain normalization)
+        low_volume_audio = np.ones(16000, dtype=np.float32) * 0.1
+        
+        orig_transcribe = self.transcriber.model.transcribe
+        try:
+            self.transcriber.model.transcribe = MagicMock(return_value=([], None))
+            # Just verify it executes VAD and volume normalization successfully without throwing exceptions
+            self.transcriber.process_audio(low_volume_audio)
+        finally:
             self.transcriber.model.transcribe = orig_transcribe
 
 if __name__ == '__main__':

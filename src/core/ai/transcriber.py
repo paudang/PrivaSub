@@ -99,15 +99,15 @@ class Transcriber:
                 input_buffer,
                 beam_size=1,
                 temperature=[0.0, 0.2, 0.4, 0.6],
-                initial_prompt="Below is the real-time transcription of a professional English discussion, full of clear vocabulary and corporate terminology.",
+                initial_prompt="Hello, this is a casual conversation. You know, we are just talking about music and studios, like, how things sound.",
                 condition_on_previous_text=True,
                 vad_filter=True,
                 vad_parameters=dict(
-                    min_speech_duration_ms=50, # Lowered to 50ms to catch ANY vocal sound
+                    min_speech_duration_ms=50,
                     max_speech_duration_s=self.max_buffer_seconds,
                     min_silence_duration_ms=500,
                     speech_pad_ms=500,
-                    threshold=0.2 # Lowered threshold to 0.2 (extremely sensitive!)
+                    threshold=0.2
                 ),
                 language=self.language
             )
@@ -173,6 +173,26 @@ class Transcriber:
             return None
         text, is_final = res
         
+        # Filter out common Whisper hallucinations on silence/noise
+        if text:
+            import re
+            cleaned_lower = re.sub(r'[^\w\s]', '', text.lower()).strip()
+            hallucinations = [
+                "thank you for watching",
+                "thank you",
+                "thank you very much",
+                "thanks for watching",
+                "please subscribe",
+                "subscribe to my channel",
+                "thank you for watching this video"
+            ]
+            temp_text = cleaned_lower
+            for phrase in hallucinations:
+                temp_text = temp_text.replace(phrase, "").strip()
+            if not temp_text:
+                # Text was composed entirely of hallucination phrases, discard
+                return None
+                
         # Apply word-level deduplication against the last finalized segment
         clean_text = self.deduplicate(text)
         
@@ -195,7 +215,7 @@ class Transcriber:
         if not prev_words or not new_words:
             return text
             
-        max_overlap = min(len(prev_words), len(new_words), 8)
+        max_overlap = min(len(prev_words), len(new_words))
         for length in range(max_overlap, 0, -1):
             if prev_words[-length:] == new_words[:length]:
                 orig_words = text.split()

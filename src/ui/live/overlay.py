@@ -4,8 +4,10 @@ import ctypes
 import customtkinter as ctk
 
 from src.core.config import AppConfig
+from src.ui.live.window_manager import WindowManagerMixin
+from src.ui.live.animation import AnimationMixin
 
-class SubtitleOverlay(ctk.CTk):
+class SubtitleOverlay(ctk.CTk, WindowManagerMixin, AnimationMixin):
     def __init__(self, target_alpha=0.8):
         super().__init__()
         
@@ -33,9 +35,9 @@ class SubtitleOverlay(ctk.CTk):
         screen_height = self.winfo_screenheight()
         
         # Subtitle window size
-        self.win_width = int(screen_width * 0.40)
+        self.win_width = 520
         self.win_height = 150
-        self.min_width = self.win_width
+        self.min_width = 520
         self.min_height = self.win_height
         
         # Position
@@ -78,7 +80,7 @@ class SubtitleOverlay(ctk.CTk):
             self.textbox._textbox.configure(
                 spacing1=2,
                 spacing2=4,
-                spacing3=8
+                spacing3=10
             )
         except Exception:
             pass
@@ -90,10 +92,10 @@ class SubtitleOverlay(ctk.CTk):
         self.textbox.bind("<<Cut>>", lambda e: "break")
         
         # Configure tags for colors and styles (both final and interim)
-        self.textbox.tag_config("en", foreground="#FFFFFF")
+        self.textbox.tag_config("en", foreground="#F2F2F7")
         self.textbox.tag_config("vi", foreground="#FFD60A")
-        self.textbox.tag_config("en_interim", foreground="#A1A1A6") # Sleek iOS-style light gray
-        self.textbox.tag_config("vi_interim", foreground="#B59A08") # Faded/dark gold
+        self.textbox.tag_config("en_interim", foreground="#8E8E93") # Sleek iOS-style light gray
+        self.textbox.tag_config("vi_interim", foreground="#C7A71C") # Faded/dark gold
 
         # Dragging logic (when not locked)
         self.main_frame.configure(cursor="hand2")
@@ -173,115 +175,7 @@ class SubtitleOverlay(ctk.CTk):
         except Exception as e:
             pass
 
-    def start_drag(self, event):
-        if self.is_locked:
-            return
-        self._drag_start_x = event.x_root
-        self._drag_start_y = event.y_root
-        self._win_start_x = self.winfo_x()
-        self._win_start_y = self.winfo_y()
 
-    def drag(self, event):
-        if self.is_locked:
-            return
-        
-        # Calculate new potential position using absolute mouse movement
-        dx = event.x_root - self._drag_start_x
-        dy = event.y_root - self._drag_start_y
-        
-        new_x = self._win_start_x + dx
-        new_y = self._win_start_y + dy
-        
-        self.geometry(f"+{new_x}+{new_y}")
-
-    def start_resize(self, event):
-        if self.is_locked:
-            return
-        self._resize_start_x = event.x_root
-        self._resize_start_y = event.y_root
-        self._start_width = self.winfo_width()
-        self._start_height = self.winfo_height()
-
-    def do_resize(self, event):
-        if self.is_locked:
-            return
-        dx = event.x_root - self._resize_start_x
-        dy = event.y_root - self._resize_start_y
-        
-        # Calculate unconstrained dimensions
-        new_width = max(self._start_width + dx, self.min_width)
-        new_height = max(self._start_height + dy, self.min_height)
-        
-        # Constrain dimensions so the window itself isn't larger than a standard screen
-        screen_width = self.winfo_screenwidth()
-        screen_height = self.winfo_screenheight()
-        
-        new_width = min(new_width, screen_width)
-        new_height = min(new_height, screen_height)
-        
-        self.geometry(f"{new_width}x{new_height}")
-
-    def set_click_through(self, enabled):
-        """Toggles the window click-through property on Windows using Win32 API."""
-        self.is_locked = enabled
-        if sys.platform == "win32":
-            try:
-                # Get the window handle (HWND) of the Tkinter window
-                hwnd = ctypes.windll.user32.GetParent(self.winfo_id())
-                
-                # Get current extended style
-                GWL_EXSTYLE = -20
-                WS_EX_TRANSPARENT = 0x00000020
-                WS_EX_LAYERED = 0x00080000
-                
-                style = ctypes.windll.user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
-                
-                if enabled:
-                    # Add transparent style
-                    new_style = style | WS_EX_TRANSPARENT | WS_EX_LAYERED
-                    # Also update UI border to show it's locked (minimalistic)
-                    self.main_frame.configure(border_color="#1C1C1E")
-                    self.resize_handle.place_forget()
-                    self.drag_handle_tr.place_forget()
-                    self.drag_handle_mr.place_forget()
-                    self.drag_handle_tl.place_forget()
-                    self.drag_handle_ml.place_forget()
-                else:
-                    # Remove transparent style
-                    new_style = style & ~WS_EX_TRANSPARENT
-                    # Highlight border to show it's draggable
-                    self.main_frame.configure(border_color="#3A3A3C")
-                    self.resize_handle.place(relx=1.0, rely=1.0, anchor="se")
-                    self.drag_handle_tr.place(relx=1.0, rely=0.0, anchor="ne")
-                    self.drag_handle_mr.place(relx=1.0, rely=0.5, anchor="e")
-                    self.drag_handle_tl.place(relx=0.0, rely=0.0, anchor="nw")
-                    self.drag_handle_ml.place(relx=0.0, rely=0.5, anchor="w")
-                    
-                ctypes.windll.user32.SetWindowLongW(hwnd, GWL_EXSTYLE, new_style)
-            except Exception as e:
-                print(f"[UI] Error setting click-through: {e}")
-        else:
-            print("[UI] Click-through is only supported on Windows.")
-
-    def set_stealth_mode(self, enabled):
-        """Toggles WDA_EXCLUDEFROMCAPTURE (0x00000011) to hide window from screen capture/screen sharing."""
-        self.is_stealth = enabled
-        if sys.platform == "win32":
-            try:
-                hwnd = ctypes.windll.user32.GetParent(self.winfo_id())
-                root_hwnd = ctypes.windll.user32.GetAncestor(self.winfo_id(), 2) or hwnd
-                WDA_NONE = 0x00000000
-                WDA_EXCLUDEFROMCAPTURE = 0x00000011
-                affinity = WDA_EXCLUDEFROMCAPTURE if enabled else WDA_NONE
-                success = ctypes.windll.user32.SetWindowDisplayAffinity(root_hwnd, affinity)
-                if not success:
-                    # Retry with direct hwnd if GetAncestor handle differed
-                    ctypes.windll.user32.SetWindowDisplayAffinity(hwnd, affinity)
-                print(f"[UI] Stealth Mode set to: {enabled}")
-            except Exception as e:
-                print(f"[UI] Error setting stealth mode: {e}")
-        else:
-            print("[UI] Stealth mode is only supported on Windows.")
 
     def set_disguised_mode(self, enabled):
         """Toggles Disguised Mini Box mode (looks like plain Notepad) to avoid suspicion."""
@@ -302,10 +196,10 @@ class SubtitleOverlay(ctk.CTk):
             self.configure(fg_color="#121212")
             self.main_frame.configure(fg_color="#1C1C1E", border_color="#2C2C2E")
             self.textbox.configure(fg_color="transparent", text_color="#FFFFFF")
-            self.textbox.tag_config("en", foreground="#FFFFFF")
+            self.textbox.tag_config("en", foreground="#F2F2F7")
             self.textbox.tag_config("vi", foreground="#FFD60A")
-            self.textbox.tag_config("en_interim", foreground="#A1A1A6")
-            self.textbox.tag_config("vi_interim", foreground="#B59A08")
+            self.textbox.tag_config("en_interim", foreground="#8E8E93")
+            self.textbox.tag_config("vi_interim", foreground="#C7A71C")
             self.attributes("-alpha", self.target_alpha)
         print(f"[UI] Disguised Mode set to: {enabled}")
 
@@ -362,27 +256,84 @@ class SubtitleOverlay(ctk.CTk):
         except Exception:
             pass
 
-        # 1. Clear any existing interim text block safely using "interim" tag range
-        try:
-            ranges = self.textbox._textbox.tag_ranges("interim")
-            if ranges:
-                self.textbox.delete("interim.first", "interim.last")
-        except Exception:
-            pass
-            
-        # 2. Insert new text contents at the end of the document
+        # 1. Update text using character-level diffing to prevent visual flickering
         if not is_final:
             interim_tag = "interim"
             en_tag = "en_interim"
             vi_tag = "vi_interim"
             
-            # Insert English interim text
-            if en_text:
-                self.textbox.insert("end", en_text, (en_tag, interim_tag))
-            # Insert Vietnamese interim text below if present
+            # Fall back to delete-and-reinsert if Vietnamese interim text is passed
+            # to keep tag styling intact for backwards-compatibility (mostly tests)
             if vi_text:
-                self.textbox.insert("end", "\n" + vi_text, (vi_tag, interim_tag))
+                try:
+                    ranges = self.textbox._textbox.tag_ranges("interim")
+                    if ranges:
+                        self.textbox.delete("interim.first", "interim.last")
+                except Exception:
+                    pass
+                if en_text:
+                    self.textbox.insert("end", en_text, (en_tag, interim_tag))
+                if vi_text:
+                    self.textbox.insert("end", "\n" + vi_text, (vi_tag, interim_tag))
+            else:
+                # Normal live mode: only English interim text is present. Use strictly additive suffix alignment.
+                ranges = self.textbox._textbox.tag_ranges("interim")
+                if ranges:
+                    try:
+                        # Retrieve currently displayed interim text
+                        current_interim = self.textbox._textbox.get("interim.first", "interim.last")
+                        
+                        # Find the additive suffix to append
+                        current_words = current_interim.split()
+                        new_words = en_text.split()
+                        
+                        suffix_to_append = ""
+                        if not current_words:
+                            suffix_to_append = en_text
+                        else:
+                            # Search for matching overlap
+                            match_found = False
+                            for suffix_len in range(min(len(current_words), 4), 0, -1):
+                                suffix = current_words[-suffix_len:]
+                                for i in range(len(new_words) - suffix_len + 1):
+                                    if new_words[i : i + suffix_len] == suffix:
+                                        new_suffix_words = new_words[i + suffix_len :]
+                                        suffix_to_append = " ".join(new_suffix_words)
+                                        match_found = True
+                                        break
+                                if match_found:
+                                    break
+                                    
+                            if not match_found:
+                                # Fallback: append words if new text is longer
+                                if len(new_words) > len(current_words):
+                                    suffix_to_append = " ".join(new_words[len(current_words) :])
+                        
+                        if suffix_to_append:
+                            # Prepend a space if the interim text doesn't end with whitespace
+                            if current_interim and not current_interim[-1].isspace():
+                                suffix_to_append = " " + suffix_to_append
+                            self.textbox._textbox.insert("interim.last", suffix_to_append, (en_tag, interim_tag))
+                    except Exception:
+                        # Fallback to delete and insert if index error occurs
+                        try:
+                            self.textbox.delete("interim.first", "interim.last")
+                        except Exception:
+                            pass
+                        if en_text:
+                            self.textbox.insert("end", en_text, (en_tag, interim_tag))
+                else:
+                    # First interim update: insert at the end
+                    if en_text:
+                        self.textbox.insert("end", en_text, (en_tag, interim_tag))
         else:
+            # Final text: delete interim range first
+            try:
+                ranges = self.textbox._textbox.tag_ranges("interim")
+                if ranges:
+                    self.textbox.delete("interim.first", "interim.last")
+            except Exception:
+                pass
             # Final text: insert English and Vietnamese with proper trailing newlines
             en_tag = "en"
             vi_tag = "vi"
@@ -413,14 +364,10 @@ class SubtitleOverlay(ctk.CTk):
                 pass
 
         # 3. Intelligent auto-scrolling
-        # Only scroll if the user was at the bottom AND the new text actually went off-screen.
-        # This prevents scroll position yanking on every character update, eliminating visual stutter.
-        if should_scroll and not self.is_end_visible():
+        # Automatically scroll to bottom if the user was already at the bottom.
+        if should_scroll:
             try:
                 self.textbox.see("end")
-                # Only run the delayed after(50) callback for finalized text updates.
-                # For high-frequency interim updates, immediate see("end") is enough 
-                # and avoids flooding the Tkinter queue with pending scroll events.
                 if is_final:
                     self.after(50, lambda: self.textbox.see("end"))
             except Exception:
@@ -437,40 +384,7 @@ class SubtitleOverlay(ctk.CTk):
             # Interim phrase can stick around slightly longer if user stops speaking mid-sentence
             self.hide_timer_id = self.after(self.auto_hide_timeout_ms + 2000, self.start_fade)
 
-    def start_fade(self):
-        """Starts the fade-out animation."""
-        if self.is_fading:
-            return
-        self.is_fading = True
-        self._fade_step(self.target_alpha, 0.0, self.fade_steps)
 
-    def _fade_step(self, start_alpha, end_alpha, steps_remaining):
-        if not self.is_fading:
-            # Animation was cancelled (new text arrived)
-            return
-            
-        if steps_remaining <= 0:
-            self.attributes("-alpha", end_alpha)
-            self.withdraw()  # Hide window completely
-            self.is_fading = False
-            self.hide_timer_id = None
-            try:
-                self.textbox.delete("1.0", "end")
-            except Exception:
-                pass
-            return
-            
-        next_alpha = start_alpha - (start_alpha - end_alpha) / steps_remaining
-        self.attributes("-alpha", next_alpha)
-        
-        # Next step in 40ms (~25 FPS animation)
-        self.after(40, self._fade_step, next_alpha, end_alpha, steps_remaining - 1)
-
-    def reset_hide_timer(self):
-        """Starts/Resets the timer to hide the UI on startup or reset."""
-        if self.hide_timer_id:
-            self.after_cancel(self.hide_timer_id)
-        self.hide_timer_id = self.after(self.auto_hide_timeout_ms, self.start_fade)
         
     def apply_config(self, new_config):
         self.config = new_config

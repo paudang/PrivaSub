@@ -20,6 +20,23 @@ def main():
     loader = unittest.TestLoader()
     suite = loader.discover(start_dir=tests_dir, pattern="test_*.py")
 
+    # Filter out integration tests if --exclude-integration is specified
+    if "--exclude-integration" in sys.argv:
+        print("[Tests] Excluding integration tests from the run...")
+        filtered_suite = unittest.TestSuite()
+        def filter_tests(suite_item):
+            if isinstance(suite_item, unittest.TestCase):
+                module_name = suite_item.__class__.__module__
+                if "integration" not in module_name:
+                    filtered_suite.addTest(suite_item)
+            else:
+                for item in suite_item:
+                    filter_tests(item)
+        filter_tests(suite)
+        suite = filtered_suite
+
+
+
     # Run the tests
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(suite)
