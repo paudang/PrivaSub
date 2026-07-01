@@ -16,7 +16,8 @@ DEFAULT_CONFIG = {
     "stealth_mode": False,
     "disguised_mode": False,
     "discreet_tray_icon": False,
-    "audio_device_index": None
+    "audio_device_index": None,
+    "whisper_model": "base.en"
 }
 
 class AppConfig:

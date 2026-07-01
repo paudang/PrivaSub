@@ -136,7 +136,8 @@ class TestIntegration(unittest.TestCase):
                 "opacity": 80,
                 "max_history_lines": 500,
                 "auto_hide_timeout_s": 15,
-                "audio_device_index": 0
+                "audio_device_index": 0,
+                "whisper_model": "tiny.en"
             }
             
             mock_capture_instance = MockAudioCapture(wav_filename)

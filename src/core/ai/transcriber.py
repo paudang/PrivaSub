@@ -173,6 +173,9 @@ class Transcriber:
             return None
         text, is_final = res
         
+        # Remove consecutive duplicate phrases of 3+ words (Whisper loops)
+        text = self.remove_consecutive_duplicates(text)
+        
         # Filter out common Whisper hallucinations on silence/noise
         if text:
             import re
@@ -242,4 +245,36 @@ class Transcriber:
             self.reset_buffer()
             return text
         return ""
+
+    def remove_consecutive_duplicates(self, text):
+        """Removes consecutive repeated phrases of 3 or more words to prevent Whisper loop hallucinations."""
+        if not text:
+            return text
+        words = text.split()
+        n = len(words)
+        if n < 6:
+            return text
+            
+        for k in range(n // 2, 2, -1):
+            i = 0
+            while i <= n - 2 * k:
+                phrase1 = words[i : i + k]
+                phrase2 = words[i + k : i + 2 * k]
+                
+                # Case-insensitive and punctuation-insensitive comparison
+                def clean_w(w):
+                    import re
+                    return re.sub(r'[^\w]', '', w.lower())
+                
+                phrase1_clean = [clean_w(w) for w in phrase1]
+                phrase2_clean = [clean_w(w) for w in phrase2]
+                
+                if phrase1_clean == phrase2_clean:
+                    # Remove the duplicate phrase
+                    words = words[: i + k] + words[i + 2 * k :]
+                    n = len(words)
+                    # Re-evaluate starting from the same index to handle multiple repeats
+                    continue
+                i += 1
+        return " ".join(words)
 

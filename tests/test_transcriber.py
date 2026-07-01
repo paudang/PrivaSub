@@ -180,5 +180,22 @@ class TestTranscriber(unittest.TestCase):
         finally:
             self.transcriber.model.transcribe = orig_transcribe
 
+    def test_remove_consecutive_duplicates(self):
+        """Verifies that consecutive duplicate phrases of 3 or more words are removed."""
+        # Simple repeat
+        text = "you said that last year and the year before that and the year before that and nothing really changed"
+        result = self.transcriber.remove_consecutive_duplicates(text)
+        self.assertEqual(result, "you said that last year and the year before that and nothing really changed")
+        
+        # Punctuation-insensitive repeat
+        text2 = "and the year before that, and the year before that."
+        result2 = self.transcriber.remove_consecutive_duplicates(text2)
+        self.assertEqual(result2, "and the year before that,")
+        
+        # No repeat or short repeat (2 words - should not be removed)
+        text3 = "hello hello my friend my friend"
+        result3 = self.transcriber.remove_consecutive_duplicates(text3)
+        self.assertEqual(result3, "hello hello my friend my friend")
+
 if __name__ == '__main__':
     unittest.main()

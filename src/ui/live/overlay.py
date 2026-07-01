@@ -6,10 +6,12 @@ import customtkinter as ctk
 from src.core.config import AppConfig
 from src.ui.live.window_manager import WindowManagerMixin
 from src.ui.live.animation import AnimationMixin
+from src.core.constants import SEMANTIC_BREAK_WORDS
 
 class SubtitleOverlay(ctk.CTk, WindowManagerMixin, AnimationMixin):
-    def __init__(self, target_alpha=0.8):
+    def __init__(self, target_alpha=0.8, parent_app=None):
         super().__init__()
+        self.parent_app = parent_app
         
         # Load user config
         self.config = AppConfig.load()
@@ -35,9 +37,9 @@ class SubtitleOverlay(ctk.CTk, WindowManagerMixin, AnimationMixin):
         screen_height = self.winfo_screenheight()
         
         # Subtitle window size
-        self.win_width = 520
-        self.win_height = 150
-        self.min_width = 520
+        self.win_width = 680
+        self.win_height = 180
+        self.min_width = 680
         self.min_height = self.win_height
         
         # Position
@@ -78,9 +80,9 @@ class SubtitleOverlay(ctk.CTk, WindowManagerMixin, AnimationMixin):
         # Configure typographical line/paragraph spacing for ultimate closed-caption readability
         try:
             self.textbox._textbox.configure(
-                spacing1=2,
-                spacing2=4,
-                spacing3=10
+                spacing1=1,
+                spacing2=3,
+                spacing3=2
             )
         except Exception:
             pass
@@ -90,6 +92,23 @@ class SubtitleOverlay(ctk.CTk, WindowManagerMixin, AnimationMixin):
         self.textbox.bind("<Key>", lambda e: "break")
         self.textbox.bind("<<Paste>>", lambda e: "break")
         self.textbox.bind("<<Cut>>", lambda e: "break")
+        
+        # Setup context menu for right-click quick controls (when not locked)
+        try:
+            import tkinter
+            self.context_menu = tkinter.Menu(self, tearoff=0)
+            self.context_menu.configure(
+                bg="#1C1C1E",
+                fg="#FFFFFF",
+                activebackground="#0A84FF",
+                activeforeground="#FFFFFF",
+                font=("Inter", 11)
+            )
+            self.main_frame.bind("<Button-3>", self.show_context_menu)
+            self.textbox.bind("<Button-3>", self.show_context_menu)
+            self.textbox._textbox.bind("<Button-3>", self.show_context_menu)
+        except Exception as e:
+            print(f"[UI] Error initializing context menu: {e}")
         
         # Configure tags for colors and styles (both final and interim)
         self.textbox.tag_config("en", foreground="#F2F2F7")
@@ -153,8 +172,12 @@ class SubtitleOverlay(ctk.CTk, WindowManagerMixin, AnimationMixin):
     def is_scrolled_to_bottom(self):
         """Returns True if the scroll position is at the very bottom (with a small margin)."""
         try:
+            # Check if the last character is currently visible on screen
+            if self.textbox._textbox.bbox("end-1c") is not None:
+                return True
+            # Fallback: check if the scrollbar is scrolled to at least 95%
             _, y_end = self.textbox._textbox.yview()
-            return y_end >= 0.98
+            return y_end >= 0.95
         except Exception:
             return True
 
@@ -210,8 +233,97 @@ class SubtitleOverlay(ctk.CTk, WindowManagerMixin, AnimationMixin):
         except Exception:
             return ""
 
+    def wrap_subtitle_text(self, text, max_chars=40, lang="en"):
+        """
+        Wraps text into lines of at most max_chars, breaking at semantic boundaries
+        to follow professional Big Tech (Netflix, BBC, YouTube) subtitle guidelines.
+        """
+        if not text or len(text) <= max_chars:
+            return text
+            
+        words = text.split()
+        lines = []
+        current_line = []
+        current_len = 0
+        
+        # Load break words from global SEMANTIC_BREAK_WORDS configuration
+        break_words = SEMANTIC_BREAK_WORDS.get(lang, SEMANTIC_BREAK_WORDS.get("en", set()))
+        
+        for word in words:
+            word_len = len(word)
+            if current_len + (1 if current_line else 0) + word_len > max_chars:
+                if not current_line:
+                    current_line.append(word)
+                    current_len = word_len
+                else:
+                    lines.append(" ".join(current_line))
+                    current_line = [word]
+                    current_len = word_len
+            else:
+                # Check if this word is a strong semantic break point and we are already at 60%+ line capacity.
+                # If so, break early to keep the line semantically clean.
+                word_lower = word.lower().strip(",.?!:;()\"'")
+                if word_lower in break_words and current_len >= max_chars * 0.6:
+                    if current_line:
+                        lines.append(" ".join(current_line))
+                    current_line = [word]
+                    current_len = word_len
+                else:
+                    current_line.append(word)
+                    current_len += (1 if current_len > 0 else 0) + word_len
+                    
+        if current_line:
+            lines.append(" ".join(current_line))
+            
+        return "\n".join(lines)
+
+    def smooth_scroll_to_end(self, duration_ms=120, steps=6):
+        """Smoothly animates the textbox scroll position to the end over duration_ms to prevent layout jumps."""
+        if not self.textbox:
+            return
+            
+        try:
+            current_scroll = self.textbox._textbox.yview()
+            current_top = current_scroll[0]
+            current_bottom = current_scroll[1]
+            
+            if current_bottom >= 0.99:
+                return # Already at or very close to the bottom
+                
+            visible_range = current_bottom - current_top
+            target_top = max(0.0, 1.0 - visible_range)
+            
+            if target_top <= current_top:
+                return
+                
+            step_size = (target_top - current_top) / steps
+            
+            def scroll_step(step_idx):
+                if step_idx >= steps:
+                    try:
+                        self.textbox._textbox.yview("moveto", target_top)
+                    except Exception:
+                        pass
+                    return
+                    
+                next_top = current_top + step_size * (step_idx + 1)
+                try:
+                    self.textbox._textbox.yview("moveto", next_top)
+                    self.after(duration_ms // steps, lambda: scroll_step(step_idx + 1))
+                except Exception:
+                    pass
+                    
+            scroll_step(0)
+        except Exception:
+            # Fallback to instant scroll
+            try:
+                self.textbox.see("end")
+            except Exception:
+                pass
+
     def set_text(self, en_text, vi_text="", is_final=False):
         """Updates subtitle text and manages showing/hiding states with zero-flicker in-place updates."""
+        is_system_msg = False
         # Strip punctuation for UI display to prevent visual stutter (speech transcription only)
         if en_text:
             is_system_msg = any(en_text.startswith(prefix) for prefix in ["PrivaSub", "Captions Overlay", "Stealth Mode", "Disguised Mode"])
@@ -262,70 +374,52 @@ class SubtitleOverlay(ctk.CTk, WindowManagerMixin, AnimationMixin):
             en_tag = "en_interim"
             vi_tag = "vi_interim"
             
-            # Fall back to delete-and-reinsert if Vietnamese interim text is passed
-            # to keep tag styling intact for backwards-compatibility (mostly tests)
-            if vi_text:
+            # Dynamically calculate max characters based on actual textbox width
+            box_width = self.textbox.winfo_width()
+            if box_width > 10:
+                # Average character width of 10 pixels for size 18 font, with margin padding of 30px
+                max_chars = max(30, (box_width - 30) // 10)
+            else:
+                max_chars = 40
+                
+            if is_system_msg:
+                wrapped_en = en_text
+                wrapped_vi = vi_text
+            else:
+                wrapped_en = self.wrap_subtitle_text(en_text, max_chars=max_chars, lang="en") if en_text else ""
+                wrapped_vi = self.wrap_subtitle_text(vi_text, max_chars=max_chars, lang="vi") if vi_text else ""
+            
+            ranges = self.textbox._textbox.tag_ranges("interim")
+            if ranges:
+                # Disable yscroll callback to prevent scroll jumping during update
+                old_yscroll = None
                 try:
-                    ranges = self.textbox._textbox.tag_ranges("interim")
-                    if ranges:
-                        self.textbox.delete("interim.first", "interim.last")
+                    old_yscroll = self.textbox._textbox.cget("yscrollcommand")
+                    self.textbox._textbox.configure(yscrollcommand="")
                 except Exception:
                     pass
-                if en_text:
-                    self.textbox.insert("end", en_text, (en_tag, interim_tag))
-                if vi_text:
-                    self.textbox.insert("end", "\n" + vi_text, (vi_tag, interim_tag))
-            else:
-                # Normal live mode: only English interim text is present. Use strictly additive suffix alignment.
-                ranges = self.textbox._textbox.tag_ranges("interim")
-                if ranges:
+                    
+                try:
+                    self.textbox.delete("interim.first", "interim.last")
+                    if wrapped_en:
+                        self.textbox.insert("end", wrapped_en, (en_tag, interim_tag))
+                    if wrapped_vi:
+                        self.textbox.insert("end", "\n" + wrapped_vi, (vi_tag, interim_tag))
+                except Exception:
+                    pass
+                    
+                # Restore scrolling callbacks
+                if old_yscroll:
                     try:
-                        # Retrieve currently displayed interim text
-                        current_interim = self.textbox._textbox.get("interim.first", "interim.last")
-                        
-                        # Find the additive suffix to append
-                        current_words = current_interim.split()
-                        new_words = en_text.split()
-                        
-                        suffix_to_append = ""
-                        if not current_words:
-                            suffix_to_append = en_text
-                        else:
-                            # Search for matching overlap
-                            match_found = False
-                            for suffix_len in range(min(len(current_words), 4), 0, -1):
-                                suffix = current_words[-suffix_len:]
-                                for i in range(len(new_words) - suffix_len + 1):
-                                    if new_words[i : i + suffix_len] == suffix:
-                                        new_suffix_words = new_words[i + suffix_len :]
-                                        suffix_to_append = " ".join(new_suffix_words)
-                                        match_found = True
-                                        break
-                                if match_found:
-                                    break
-                                    
-                            if not match_found:
-                                # Fallback: append words if new text is longer
-                                if len(new_words) > len(current_words):
-                                    suffix_to_append = " ".join(new_words[len(current_words) :])
-                        
-                        if suffix_to_append:
-                            # Prepend a space if the interim text doesn't end with whitespace
-                            if current_interim and not current_interim[-1].isspace():
-                                suffix_to_append = " " + suffix_to_append
-                            self.textbox._textbox.insert("interim.last", suffix_to_append, (en_tag, interim_tag))
+                        self.textbox._textbox.configure(yscrollcommand=old_yscroll)
                     except Exception:
-                        # Fallback to delete and insert if index error occurs
-                        try:
-                            self.textbox.delete("interim.first", "interim.last")
-                        except Exception:
-                            pass
-                        if en_text:
-                            self.textbox.insert("end", en_text, (en_tag, interim_tag))
-                else:
-                    # First interim update: insert at the end
-                    if en_text:
-                        self.textbox.insert("end", en_text, (en_tag, interim_tag))
+                        pass
+            else:
+                # First interim update: insert at the end
+                if wrapped_en:
+                    self.textbox.insert("end", wrapped_en, (en_tag, interim_tag))
+                if wrapped_vi:
+                    self.textbox.insert("end", "\n" + wrapped_vi, (vi_tag, interim_tag))
         else:
             # Final text: delete interim range first
             try:
@@ -338,10 +432,25 @@ class SubtitleOverlay(ctk.CTk, WindowManagerMixin, AnimationMixin):
             en_tag = "en"
             vi_tag = "vi"
             
-            if en_text:
-                self.textbox.insert("end", en_text + "\n", en_tag)
-            if vi_text:
-                self.textbox.insert("end", vi_text + "\n", vi_tag)
+            # Dynamically calculate max characters based on actual textbox width
+            box_width = self.textbox.winfo_width()
+            if box_width > 10:
+                # Average character width of 10 pixels for size 18 font, with margin padding of 30px
+                max_chars = max(30, (box_width - 30) // 10)
+            else:
+                max_chars = 40
+                
+            if is_system_msg:
+                wrapped_en = en_text
+                wrapped_vi = vi_text
+            else:
+                wrapped_en = self.wrap_subtitle_text(en_text, max_chars=max_chars, lang="en") if en_text else ""
+                wrapped_vi = self.wrap_subtitle_text(vi_text, max_chars=max_chars, lang="vi") if vi_text else ""
+            
+            if wrapped_en:
+                self.textbox.insert("end", wrapped_en + "\n", en_tag)
+            if wrapped_vi:
+                self.textbox.insert("end", wrapped_vi + "\n", vi_tag)
                 
             # Add an extra blank line for separation after a final segment
             self.textbox.insert("end", "\n", "final")
@@ -366,12 +475,7 @@ class SubtitleOverlay(ctk.CTk, WindowManagerMixin, AnimationMixin):
         # 3. Intelligent auto-scrolling
         # Automatically scroll to bottom if the user was already at the bottom.
         if should_scroll:
-            try:
-                self.textbox.see("end")
-                if is_final:
-                    self.after(50, lambda: self.textbox.see("end"))
-            except Exception:
-                pass
+            self.smooth_scroll_to_end()
         
         # Handle auto-hide timers
         if self.hide_timer_id:
@@ -405,9 +509,9 @@ class SubtitleOverlay(ctk.CTk, WindowManagerMixin, AnimationMixin):
     def set_translation_visible(self, visible):
         """Toggles the visibility of the Vietnamese translation (updates logic for new segments)."""
         if visible:
-            self.min_height = 150
+            self.min_height = 180
         else:
-            self.min_height = 110
+            self.min_height = 130
             
         # Update geometry preserving current position
         x_pos = self.winfo_x()
@@ -416,6 +520,50 @@ class SubtitleOverlay(ctk.CTk, WindowManagerMixin, AnimationMixin):
         curr_height = max(self.winfo_height(), self.min_height)
         curr_width = max(self.winfo_width(), self.min_width)
         self.geometry(f"{curr_width}x{curr_height}+{x_pos}+{y_pos}")
+
+    def show_context_menu(self, event):
+        """Displays a right-click context menu on the overlay for quick controls."""
+        if self.is_locked:
+            return
+            
+        try:
+            self.context_menu.delete(0, "end")
+            
+            parent = self.parent_app
+            if parent:
+                # 1. Pause/Resume toggle
+                status_text = "Resume Captions" if parent.is_paused else "Pause Captions"
+                self.context_menu.add_command(label=status_text, command=lambda: parent.on_toggle_pause(None, None))
+                
+                # 2. Lock option
+                self.context_menu.add_command(label="Lock Window (Click-Through)", command=self.lock_from_menu)
+                
+            self.context_menu.add_command(label="Clear Subtitle History", command=self.clear_history)
+            
+            if parent:
+                self.context_menu.add_separator()
+                self.context_menu.add_command(label="Open Settings...", command=lambda: parent.on_open_settings(None, None))
+                self.context_menu.add_command(label="Exit", command=lambda: parent.on_exit(None, None))
+                
+            self.context_menu.post(event.x_root, event.y_root)
+        except Exception as e:
+            print(f"[UI] Error showing context menu: {e}")
+
+    def clear_history(self):
+        """Clears all subtitle text currently in the box."""
+        try:
+            self.textbox.configure(state="normal")
+            self.textbox.delete("1.0", "end")
+            self.textbox.configure(state="normal") # keep normal for scrolling
+            print("[UI] Subtitle history cleared.")
+        except Exception as e:
+            print(f"[UI] Error clearing history: {e}")
+
+    def lock_from_menu(self):
+        """Locks the overlay to be click-through, triggered from the context menu."""
+        parent = self.parent_app
+        if parent:
+            parent.on_toggle_lock(None, None)
 
     def close(self):
         """Cleans up timers and destroys window."""

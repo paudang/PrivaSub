@@ -41,15 +41,16 @@ class PrivaSubApp:
         if audio_dev_idx is not None:
             self.capture.selected_device_index = audio_dev_idx
         
-        # Use tiny.en model for optimized English transcription
-        self.transcriber = Transcriber(model_size="tiny.en", device="cpu", compute_type="int8", language="en")
+        # Use user-selected Whisper model size, default to "base.en" for significantly higher accuracy
+        model_size = self.config.get("whisper_model", "base.en")
+        self.transcriber = Transcriber(model_size=model_size, device="cpu", compute_type="int8", language="en")
         
         # Initialize offline translator
         print("[Main] Loading offline translator...")
         self.translator = OfflineTranslator(device="cpu", compute_type="int8", source_lang="en", target_lang=self.target_language)
         
         # Initialize UI on main thread
-        self.app = SubtitleOverlay()
+        self.app = SubtitleOverlay(parent_app=self)
         self.app.set_click_through(self.is_locked)
         self.app.set_stealth_mode(self.is_stealth)
         self.app.after(100, lambda: self.app.set_stealth_mode(self.is_stealth))
@@ -70,6 +71,7 @@ class PrivaSubApp:
         self.last_translation_time = 0.0
         self.last_translated_text = ""
         self.cached_vi_text = ""
+        self.last_interim_ui_update_time = 0.0
         
         # 2. Setup System Tray Icon
         self.tray_manager = TrayIconManager(self)
@@ -211,7 +213,34 @@ class PrivaSubApp:
             self.is_disguised = new_config.get("disguised_mode", False)
             self.is_discreet_icon = new_config.get("discreet_tray_icon", False)
             
-            self.transcriber.set_language("en")
+            # Check if Whisper model size changed, and reload in background
+            new_model = new_config.get("whisper_model", "base.en")
+            current_model = getattr(self.transcriber, "model_size", "")
+            if current_model != new_model:
+                print(f"[Main] Whisper model changed from {current_model} to {new_model}. Reloading in background...")
+                self.app.set_text(f"PrivaSub: Loading Whisper model '{new_model}'...", "", is_final=True)
+                
+                # Stop capture while reloading to avoid queue congestion
+                was_paused = self.is_paused
+                self.capture.pause()
+                
+                def reload_model_thread():
+                    try:
+                        new_transcriber = Transcriber(model_size=new_model, device="cpu", compute_type="int8", language="en")
+                        self.transcriber = new_transcriber
+                        print("[Main] Whisper model reloaded successfully.")
+                        self.app.after(0, self.app.set_text, "PrivaSub: Whisper model updated successfully!", "", True)
+                    except Exception as e:
+                        print(f"[Main] Error reloading Whisper model: {e}")
+                        self.app.after(0, self.app.set_text, f"Error loading model: {e}", "", True)
+                    finally:
+                        if not was_paused:
+                            self.app.after(1000, lambda: self.capture.resume())
+                            
+                import threading
+                threading.Thread(target=reload_model_thread, daemon=True).start()
+            else:
+                self.transcriber.set_language("en")
             
             if self.target_language != "None" and self.target_language != "None (English Only)":
                 self.translator.set_translation_direction("en", self.target_language)
@@ -242,6 +271,15 @@ class PrivaSubApp:
                 if is_final:
                     trans_text = self.translator.translate(text)
                     
+            # Rate-limit interim UI updates to under 2s (e.g. 1.0s) to prevent visual stuttering.
+            # We never skip final updates to ensure they are finalized immediately.
+            if not is_final:
+                import time
+                current_time = time.time()
+                if current_time - self.last_interim_ui_update_time < 1.0:
+                    return
+                self.last_interim_ui_update_time = current_time
+
             # Push UI update task to Tkinter main thread loop safely
             try:
                 self.app.after(0, self.app.set_text, text, trans_text, is_final)
