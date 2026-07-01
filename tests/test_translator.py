@@ -89,5 +89,23 @@ class TestTranslator(unittest.TestCase):
                         translator = OfflineTranslator(model_dir="dummy/path")
                         mock_download.assert_called_once()
 
+    def test_translate_uninitialized(self):
+        """Checks translation fallback when translator or tokenizer is None."""
+        orig_translator = self.translator.translator
+        self.translator.translator = None
+        try:
+            result = self.translator.translate("Hello")
+            self.assertEqual(result, "Hello")
+        finally:
+            self.translator.translator = orig_translator
+
+    def test_download_error(self):
+        """Verifies that snapshot_download failure raises RuntimeError."""
+        with patch('src.core.ai.translator.os.path.exists', return_value=False):
+            with patch('src.core.ai.translator.snapshot_download', side_effect=Exception("API Error")):
+                with patch('src.core.ai.translator.os.makedirs'):
+                    with self.assertRaises(RuntimeError):
+                        OfflineTranslator(model_dir="dummy/path")
+
 if __name__ == '__main__':
     unittest.main()

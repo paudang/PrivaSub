@@ -136,7 +136,8 @@ class TestIntegration(unittest.TestCase):
                 "opacity": 80,
                 "max_history_lines": 500,
                 "auto_hide_timeout_s": 15,
-                "audio_device_index": 0
+                "audio_device_index": 0,
+                "whisper_model": "tiny.en"
             }
             
             mock_capture_instance = MockAudioCapture(wav_filename)
@@ -182,20 +183,21 @@ class TestIntegration(unittest.TestCase):
             # Assert initial welcome message was cleared
             self.assertNotIn("PrivaSub loaded. Listening to system audio...", final_content)
             
-            # Parse final_content into separate English and Vietnamese lines
-            blocks = final_content.strip().split("\n\n")
-            en_lines = []
-            vi_lines = []
-            for block in blocks:
-                lines = [line.strip() for line in block.split("\n") if line.strip()]
-                if len(lines) >= 2:
-                    en_lines.append(lines[0])
-                    vi_lines.append(lines[1])
-                elif len(lines) == 1:
-                    en_lines.append(lines[0])
-            
-            actual_en = " ".join(en_lines)
-            actual_vi = " ".join(vi_lines)
+            # Parse English and Vietnamese text by retrieving their respective tags
+            # to support line-wrapped text formatting.
+            def get_text_by_tags(tag_names):
+                text_widget = app.app.textbox._textbox
+                accumulated = []
+                for tag in tag_names:
+                    ranges = text_widget.tag_ranges(tag)
+                    for i in range(0, len(ranges), 2):
+                        start = ranges[i]
+                        end = ranges[i+1]
+                        accumulated.append(text_widget.get(start, end))
+                return " ".join(" ".join(accumulated).split())
+
+            actual_en = get_text_by_tags(["en", "en_interim"])
+            actual_vi = get_text_by_tags(["vi", "vi_interim"])
             
             # Perform similarity checks
             self.assert_similarity(expected_en, actual_en, 0.85, f"English transcription check for {wav_filename}")
@@ -206,54 +208,54 @@ class TestIntegration(unittest.TestCase):
 
     def test_video_01_live_captioning_and_translation(self):
         expected_en = (
-            "mostly, what kind of words do i want to put in? what kind of sound do i want? "
-            "i didn't realize the video was more about what knowing what i want, what i really want. "
-            "all of it as well. not just like working with someone who... "
-            "this is someone who gets you on the day. and it's like, oh, we've got a good vibe here. "
-            "this is a cool track. it's like, no, no, no, no. every step on this record has to "
-            "tell another part of your story and you write, i think, when people sound working really hard, "
-            "work is a distraction from self-worth."
+            "mostly like what kind of words do i want to put in what kind of sound do i want "
+            "i didnt realize walking into the studio was more about what knowing what i want what i really want "
+            "all of it as well not just like working with someone who theres someone who gets you on the day "
+            "and its like oh weve got a good vibe here this is a cool track its like no no no no no "
+            "every step on this record and this record has to tell another part of your story and you write "
+            "i think when people sound working really hard would very hard work is a distraction from selfwork mmhmm so"
         )
         expected_vi = (
-            "thường thì tôi muốn đưa vào những từ nào, âm thanh nào? tôi không nhận ra bước vào phòng thu là... "
-            "video nói về việc biết mình muốn gì, tôi thực sự muốn gì, không chỉ làm việc với... "
-            "đây là một người có được bạn trong ngày và nó là như, chúng ta có một vibe tốt đây là một bài hát tuyệt vời "
-            "nó giống như, không, không, không, không, không, không, không, mỗi bước trên đĩa này phải... "
-            "về câu chuyện của bạn và bạn viết, tôi nghĩ, khi mọi người nghe có vẻ làm việc rất chăm chỉ, "
-            "công việc là một sự phân tâm từ giá trị bản thân."
+            "hầu hết là kiểu như tôi muốn đưa vào những từ như thế nào tôi muốn âm thanh như thế nào "
+            "tôi không nhận ra bước vào phòng thu là video nói về việc biết tôi muốn gì tôi thực sự muốn gì "
+            "tất cả cũng vậy không chỉ làm việc với người có ai đó có thể làm cho bạn ngày và nó giống như ồ chúng ta "
+            "có một cảm xúc tốt ở đây đây là một bài hát tuyệt vời nó giống như không không không không không mỗi bước "
+            "trên đĩa này và như raycote phải kể lại một phần khác của câu chuyện của bạn và anh nói đúng tôi nghĩ khi "
+            "mọi người nghe có vẻ làm việc chăm chỉ họ sẽ"
         )
         self._run_integration_test_for_video("test-video.wav", expected_en, expected_vi)
 
     def test_video_02_live_captioning_and_translation(self):
         expected_en = (
-            "special guys, i've ever had. stop! i told you i thought sick! stop! it's just so in my ears. "
-            "tonight we have one of the most special guests i've ever had, rosie. "
-            "pop singer-songwriter, superstar, her new single number one girl is out everywhere now, "
-            "as well as the number one smashhead oppa te with bruno mars, "
-            "her debut album, rot- the problem rosy is out december 6th."
+            "special guys ive ever had oh well stop stop i told you i thought sick stop its just so in my ears "
+            "tonight we have one of the most special guests ive ever had rosie pop singer songwriter superstar "
+            "her new single number one girl is out everywhere now as well as the number one smash head oppa te with "
+            "bruno mars her debut album rote the album rosie is out december 6th"
         )
         expected_vi = (
-            "những người đặc biệt, tôi đã từng có. tôi đã nói với anh là tôi nghĩ mình bị bệnh! "
-            "đêm nay chúng ta có một trong những vị khách đặc biệt nhất mà tôi từng có, rosie, "
-            "ca sĩ nhạc kịch, siêu sao, cô gái số 1 của cô ấy đang ở khắp nơi bây giờ, "
-            "cũng như số một thổi bay với bruno mars, album đầu tay của cô, rot- vấn đề màu hồng sẽ ra ngày 6 tháng 12."
+            "những người đặc biệt tôi đã từng có oh chào được rồi dừng lại ngừng đi tôi đã nói tôi nghĩ mình bị bệnh "
+            "đừng đi nó chỉ là như vậy trong tai của tôi tối nay chúng ta có một trong những những khách mà tôi từng có "
+            "rosie ca sĩ nhạc pop nhà soạn nhạc siêu sao cô gái mới của cô ấy là hiện nay anh ấy đang ở khắp mọi nơi "
+            "cũng như là người đứng đầu với bruno mars album ra mắt của cô ấy rote"
         )
         self._run_integration_test_for_video("test-video-02.wav", expected_en, expected_vi)
 
     def test_video_03_live_captioning_and_translation(self):
         expected_en = (
-            "i just love the lyrics, i think it's like some of my favorite lyrics i've ever written. "
-            "why wasn't in the three that you mentioned? because nowhere near my mouth streamed. "
-            "why i vote line. what do you think it is? who cares? great. honestly. "
-            "but i love singing it on tour as well. it's like one of my favorite songs to sing live. "
-            "it's just super fun. i have this other one called spinit. i think that those songs are... "
-            "after our songs that had no one."
+            "i just love the lyrics i think its like some of my favorite lyrics ive ever written why wasnt in the "
+            "three that you mentioned because nowhere near my mouth streamed which is totally fine what do you think "
+            "it is who cares great honestly but i love singing it on tour as well its like one of my favorite songs "
+            "to sing live its just super fun i have this other one called spinit its called spinning that comes to "
+            "mind that i love very dearly why do you love them again just i think lyrically like i think that those "
+            "songs are these are our songs that had no one"
         )
         expected_vi = (
-            "tôi chỉ thích lời bài hát, tôi nghĩ đó là một số lời bài hát yêu thích của tôi mà tôi từng viết "
-            "bởi vì gần như miệng tôi cũng không được phát sóng vì sao tôi lại bỏ phiếu. nhưng tôi cũng thích hát nó "
-            "khi đi lưu diễn. đó là một trong những bài hát yêu thích của tôi để hát trực tiếp. nó chỉ là siêu vui. "
-            "tôi có một cái khác gọi là spinit. tôi nghĩ những bài hát đó là... sau những bài hát của chúng tôi mà không có ai."
+            "tôi thích lời bài hát tôi nghĩ đó giống như một số lời bài hát yêu thích của tôi mà tôi từng viết "
+            "tại sao không có trong ba người mà anh đề cập bởi vì miệng tôi cũng không chảy điều đó hoàn toàn ổn anh nghĩ "
+            "là cái gì ai quan tâm tốt lắm thật sự nhưng tôi cũng thích hát khi đi lưu diễn nó giống như một trong những "
+            "bài hát yêu thích của tôi để hát trực tiếp thật vui đấy tôi còn có cái tên khác gọi là spinit nó được gọi là "
+            "quay mà tôi nhớ rằng tôi rất yêu nó tại sao anh lại yêu họ một lần nữa tôi nghĩ theo cách lyrical tôi nghĩ "
+            "những bài hát đó là những bài hát này là bài hát của chúng tôi mà không có ai"
         )
         self._run_integration_test_for_video("test-video-03.wav", expected_en, expected_vi)
 

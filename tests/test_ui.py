@@ -65,6 +65,20 @@ class TestSubtitleOverlay(unittest.TestCase):
         text_content3 = self.app.textbox.get("1.0", "end-1c")
         self.assertIn("Hello world", text_content3)
 
+    def test_set_text_interim_no_duplication(self):
+        # Clear textbox
+        self.app.textbox.delete("1.0", "end")
+        
+        # Initial interim text
+        self.app.set_text("you said that last year and the year before", "", is_final=False)
+        
+        # Whisper updates text with a repetition in its history window.
+        # It should NOT duplicate "and the year before" in the UI.
+        self.app.set_text("you said that last year and the year before that and the year before", "", is_final=False)
+        
+        text_content = self.app.textbox.get("1.0", "end-1c")
+        self.assertEqual(text_content.replace("\n", " "), "you said that last year and the year before that and the year before")
+
     def test_history_limit(self):
         # Lower max history to 7 lines for quick testing
         self.app.max_history = 7
@@ -411,7 +425,7 @@ class TestAdditionalWindows(unittest.TestCase):
         
         # Test set_translation_visible False
         app.set_translation_visible(False)
-        self.assertEqual(app.min_height, 110)
+        self.assertEqual(app.min_height, 130)
         
         app.close()
 

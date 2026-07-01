@@ -103,7 +103,7 @@ class OfflineTranslator:
         logger.info("NLLB Translation model loaded successfully.")
 
     def translate(self, text: str) -> str:
-        """Translates a single sentence between English and Vietnamese."""
+        """Translates text between English and target language, splitting into sentences to preserve full content."""
         if not text or not text.strip():
             return ""
 
@@ -111,6 +111,20 @@ class OfflineTranslator:
             logger.warning("Translator model not initialized. Skipping translation.")
             return text
 
+        import re
+        # Split text into sentences using simple regex (split on ., ?, ! followed by space)
+        sentences = re.split(r'(?<=[.?!])\s+', text.strip())
+        
+        translated_sentences = []
+        for sentence in sentences:
+            if not sentence.strip():
+                continue
+            translated_sentences.append(self._translate_single_sentence(sentence))
+            
+        return " ".join(translated_sentences)
+
+    def _translate_single_sentence(self, text: str) -> str:
+        """Translates a single sentence using the loaded model."""
         try:
             # Prepare target language prefix
             tgt_code = get_nllb_code(self.target_lang, default="vie_Latn")
@@ -138,8 +152,8 @@ class OfflineTranslator:
 
             return translated_text
         except Exception as e:
-            logger.error(f"Translation failed for text '{text}': {e}")
-            return text  # Fallback to original text on failure
+            logger.error(f"Single sentence translation failed for '{text}': {e}")
+            return text
 
     def set_translation_direction(self, source_lang, target_lang):
         """Dynamically switches translation direction."""

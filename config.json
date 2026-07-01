@@ -4,6 +4,7 @@
     "opacity": 80,
     "source_language": "English Only",
     "target_language": "None",
+    "whisper_model": "base.en",
     "stealth_mode": false,
     "disguised_mode": false,
     "discreet_tray_icon": false

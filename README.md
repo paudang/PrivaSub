@@ -99,6 +99,11 @@ You can start the application using one of the following methods:
 
 You can run the tests using one of the following commands depending on what you want to verify:
 
+*   **Run the unit test suite** (CI mode, excluding integration tests):
+    ```bash
+    python run_tests.py --exclude-integration
+    ```
+
 *   **Run the entire test suite** (both unit and integration tests):
     ```bash
     python run_tests.py

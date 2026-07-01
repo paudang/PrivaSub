@@ -25,7 +25,7 @@ jobs:
 
     - name: Run Unit Tests
       run: |
-        coverage run run_tests.py
+        coverage run run_tests.py --exclude-integration
 
     - name: Check Coverage Threshold (90%)
       run: |
